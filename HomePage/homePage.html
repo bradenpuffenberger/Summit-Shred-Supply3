@@ -5,184 +5,207 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Summit Shred Supply</title>
 
-    <style>
-      :root {
-        --bg: #0b1220;
-        --panel: #0f1a2f;
-        --text: #e7eefc;
-        --muted: #a8b3cf;
-        --brand: #7cc4ff;
-        --btn: #1b2a4a;
-        --btn-hover: #24365f;
-        --border: rgba(231, 238, 252, 0.12);
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        margin: 0;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        background: radial-gradient(1200px 600px at 20% 0%, #172a52 0%, var(--bg) 55%);
-        color: var(--text);
-        min-height: 100vh;
-      }
-
-      /* Top header */
-      header {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 64px;
-        border-bottom: 1px solid var(--border);
-        background: rgba(11, 18, 32, 0.85);
-        backdrop-filter: blur(10px);
-      }
-
-      header h1 {
-        margin: 0;
-        font-size: 22px;
-        letter-spacing: 0.6px;
-      }
-
-      /* Profile button pinned top-right */
-      .profile-btn {
-        position: absolute;
-        right: 16px;
-        top: 14px;
-      }
-
-      .btn {
-        border: 1px solid var(--border);
-        background: var(--btn);
-        color: var(--text);
-        padding: 10px 14px;
-        border-radius: 12px;
-        cursor: pointer;
-        font-weight: 600;
-      }
-
-      .btn:hover {
-        background: var(--btn-hover);
-      }
-
-      /* Main layout */
-      .page {
-        display: grid;
-        grid-template-columns: 280px 1fr;
-        gap: 16px;
-        padding: 16px;
-      }
-
-      /* Left categories scrolling window */
-      .categories {
-        border: 1px solid var(--border);
-        background: rgba(15, 26, 47, 0.75);
-        border-radius: 16px;
-        padding: 12px;
-        height: calc(100vh - 64px - 32px);
-        overflow: auto;
-      }
-
-      .categories h2 {
-        margin: 0 0 10px;
-        font-size: 14px;
-        letter-spacing: 0.8px;
-        text-transform: uppercase;
-        color: var(--muted);
-      }
-
-      .category-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        display: grid;
-        gap: 10px;
-      }
-
-      .category-item {
-        border: 1px solid var(--border);
-        background: rgba(27, 42, 74, 0.35);
-        border-radius: 14px;
-        padding: 12px;
-        cursor: pointer;
-      }
-
-      .category-item:hover {
-        border-color: rgba(124, 196, 255, 0.45);
-        background: rgba(27, 42, 74, 0.55);
-      }
-
-      /* Right content area placeholder */
-      .content {
-        border: 1px dashed rgba(231, 238, 252, 0.18);
-        border-radius: 16px;
-        min-height: calc(100vh - 64px - 32px);
-        padding: 16px;
-      }
-
-      .content p {
-        color: var(--muted);
-        margin-top: 0;
-      }
-
-      /* Bottom-right chat button */
-      .chat-btn {
-        position: fixed;
-        right: 18px;
-        bottom: 18px;
-        z-index: 20;
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
-      }
-
-      /* Mobile tweak */
-      @media (max-width: 820px) {
-        .page {
-          grid-template-columns: 1fr;
-        }
-        .categories {
-          height: auto;
-          max-height: 40vh;
-        }
-      }
-    </style>
+    <link rel="stylesheet" href="homepage.css" />
   </head>
 
   <body>
     <header>
       <h1>Summit Shred Supply</h1>
-      <button class="btn profile-btn" type="button">Profile</button>
+      <button class="btn profile-btn" id="profileBtn" type="button">Profile</button>
     </header>
 
     <main class="page">
       <aside class="categories" aria-label="Product Categories">
         <h2>Categories</h2>
-        <ul class="category-list">
-          <li class="category-item">Snowboards</li>
-          <li class="category-item">Bindings</li>
-          <li class="category-item">Boots</li>
-          <li class="category-item">Helmets</li>
-          <li class="category-item">Goggles</li>
-          <li class="category-item">Jackets</li>
-          <li class="category-item">Pants</li>
-          <li class="category-item">Gloves</li>
-          <li class="category-item">Base Layers</li>
-          <li class="category-item">Socks</li>
-          <li class="category-item">Wax & Tuning</li>
-          <li class="category-item">Bags</li>
-          <li class="category-item">Accessories</li>
+        <ul class="category-list" id="categoryList">
+          <li class="category-item" data-category="All">All</li>
+          <li class="category-item" data-category="Snowboards">Snowboards</li>
+          <li class="category-item" data-category="Bindings">Bindings</li>
+          <li class="category-item" data-category="Boots">Boots</li>
+          <li class="category-item" data-category="Helmets">Helmets</li>
+          <li class="category-item" data-category="Goggles">Goggles</li>
+          <li class="category-item" data-category="Jackets">Jackets</li>
+          <li class="category-item" data-category="Pants">Pants</li>
+          <li class="category-item" data-category="Gloves">Gloves</li>
+          <li class="category-item" data-category="Base Layers">Base Layers</li>
+          <li class="category-item" data-category="Socks">Socks</li>
+          <li class="category-item" data-category="Wax & Tuning">Wax & Tuning</li>
+          <li class="category-item" data-category="Bags">Bags</li>
+          <li class="category-item" data-category="Accessories">Accessories</li>
         </ul>
       </aside>
 
       <section class="content">
-        <p>Main content area (products, featured items, etc.)</p>
+        <div class="content-header">
+          <h2 class="content-title">Items</h2>
+          <p class="content-subtitle" id="filterLabel">Showing: All</p>
+        </div>
+
+        <div class="items" id="items">
+          <article class="item-card" data-category="Snowboards">
+            <div class="item-name">Summit Carver 155</div>
+            <div class="item-meta">Category: Snowboards</div>
+            <div class="item-price">$429.99</div>
+          </article>
+          <article class="item-card" data-category="Snowboards">
+            <div class="item-name">Pow Surfer 160W</div>
+            <div class="item-meta">Category: Snowboards</div>
+            <div class="item-price">$499.99</div>
+          </article>
+          <article class="item-card" data-category="Bindings">
+            <div class="item-name">Peak Grip Bindings</div>
+            <div class="item-meta">Category: Bindings</div>
+            <div class="item-price">$219.99</div>
+          </article>
+          <article class="item-card" data-category="Boots">
+            <div class="item-name">Alpine Lock Boots</div>
+            <div class="item-meta">Category: Boots</div>
+            <div class="item-price">$279.99</div>
+          </article>
+          <article class="item-card" data-category="Helmets">
+            <div class="item-name">Ridge Helmet MIPS</div>
+            <div class="item-meta">Category: Helmets</div>
+            <div class="item-price">$129.99</div>
+          </article>
+          <article class="item-card" data-category="Goggles">
+            <div class="item-name">StormView Goggles</div>
+            <div class="item-meta">Category: Goggles</div>
+            <div class="item-price">$89.99</div>
+          </article>
+          <article class="item-card" data-category="Jackets">
+            <div class="item-name">Summit Shell Jacket</div>
+            <div class="item-meta">Category: Jackets</div>
+            <div class="item-price">$199.99</div>
+          </article>
+          <article class="item-card" data-category="Gloves">
+            <div class="item-name">FrostGuard Gloves</div>
+            <div class="item-meta">Category: Gloves</div>
+            <div class="item-price">$49.99</div>
+          </article>
+          <article class="item-card" data-category="Wax & Tuning">
+            <div class="item-name">All-Temp Wax Kit</div>
+            <div class="item-meta">Category: Wax & Tuning</div>
+            <div class="item-price">$34.99</div>
+          </article>
+          <article class="item-card" data-category="Bags">
+            <div class="item-name">Board Travel Bag</div>
+            <div class="item-meta">Category: Bags</div>
+            <div class="item-price">$149.99</div>
+          </article>
+          <article class="item-card" data-category="Accessories">
+            <div class="item-name">Pocket Tool</div>
+            <div class="item-meta">Category: Accessories</div>
+            <div class="item-price">$19.99</div>
+          </article>
+        </div>
       </section>
     </main>
 
-    <button class="btn chat-btn" type="button">Chat</button>
+    <button class="btn chat-btn" id="chatBtn" type="button">Chat</button>
+
+    <!-- Profile Modal -->
+    <div class="modal" id="profileModal" aria-hidden="true">
+      <div class="modal__overlay" data-close></div>
+      <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Profile">
+        <div class="modal__header">
+          <div class="modal__title">Profile</div>
+          <button class="btn btn--small" type="button" data-close>Close</button>
+        </div>
+        <div class="modal__body">
+          <div class="profile-row"><span class="label">Username:</span> <span class="value">SummitRider99</span></div>
+          <div class="profile-row"><span class="label">Member Since:</span> <span class="value">2026</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div class="modal" id="chatModal" aria-hidden="true">
+      <div class="modal__overlay" data-close></div>
+      <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Chat">
+        <div class="modal__header">
+          <div class="modal__title">Chat</div>
+          <button class="btn btn--small" type="button" data-close>Close</button>
+        </div>
+        <div class="modal__body">
+          <div class="chat">
+            <div class="chat__msg chat__msg--them">
+              <div class="chat__bubble">Hey! Need help finding the right board?</div>
+            </div>
+            <div class="chat__msg chat__msg--me">
+              <div class="chat__bubble">Yeah—something good for all-mountain.</div>
+            </div>
+            <div class="chat__msg chat__msg--them">
+              <div class="chat__bubble">Check out the Summit Carver 155. Great stability and edge hold.</div>
+            </div>
+          </div>
+          <div class="chat__inputRow">
+            <input class="chat__input" type="text" placeholder="Type a message…" disabled />
+            <button class="btn btn--small" type="button" disabled>Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const chatBtn = document.getElementById('chatBtn');
+      const profileBtn = document.getElementById('profileBtn');
+
+      const chatModal = document.getElementById('chatModal');
+      const profileModal = document.getElementById('profileModal');
+
+      const itemsEl = document.getElementById('items');
+      const filterLabel = document.getElementById('filterLabel');
+      const categoryList = document.getElementById('categoryList');
+
+      function setModalOpen(modalEl, open) {
+        if (!modalEl) return;
+        modalEl.classList.toggle('is-open', open);
+        modalEl.setAttribute('aria-hidden', String(!open));
+      }
+
+      function closeAllModals() {
+        setModalOpen(chatModal, false);
+        setModalOpen(profileModal, false);
+      }
+
+      chatBtn?.addEventListener('click', () => setModalOpen(chatModal, true));
+      profileBtn?.addEventListener('click', () => setModalOpen(profileModal, true));
+
+      document.addEventListener('click', (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (target.matches('[data-close]')) {
+          closeAllModals();
+        }
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAllModals();
+      });
+
+      function applyCategoryFilter(category) {
+        const normalized = category || 'All';
+        filterLabel.textContent = `Showing: ${normalized}`;
+
+        const cards = itemsEl.querySelectorAll('.item-card');
+        cards.forEach((card) => {
+          const cardCategory = card.getAttribute('data-category');
+          const show = normalized === 'All' || cardCategory === normalized;
+          card.classList.toggle('is-hidden', !show);
+        });
+      }
+
+      categoryList?.addEventListener('click', (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        const item = target.closest('.category-item');
+        if (!item) return;
+        const category = item.getAttribute('data-category') || item.textContent || 'All';
+        applyCategoryFilter(category.trim());
+      });
+
+      // Default view
+      applyCategoryFilter('All');
+    </script>
   </body>
 </html>
