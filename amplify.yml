@@ -5,7 +5,7 @@ frontend:
       commands: []
     build:
       commands:
-        - echo "Build phase - copying static files"
+        - echo "Building static site"
   artifacts:
     baseDirectory: /
     files:
