@@ -1,94 +1,78 @@
-// AWS Cognito Authentication Handler
+// Amplify Gen 2 Authentication Handler
 // This file handles login, signup, and session management
+
+import { Amplify } from 'aws-amplify';
+import { signIn, signUp, signOut, getCurrentUser } from 'aws-amplify/auth';
+import amplifyconfig from './amplifyconfiguration.json';
+
+// Configure Amplify
+Amplify.configure(amplifyconfig);
 
 class CognitoAuth {
   constructor() {
-    // These will be set after Amplify CLI sets up your Cognito
-    this.userPool = null;
-    this.initialized = false;
-    this.init();
-  }
-
-  init() {
-    // For now, we'll set up a mock implementation
-    // After you run "amplify add auth", update these values
-    const poolData = {
-      UserPoolId: localStorage.getItem('userPoolId') || 'YOUR_USER_POOL_ID',
-      ClientId: localStorage.getItem('clientId') || 'YOUR_CLIENT_ID'
-    };
-
-    if (poolData.UserPoolId !== 'YOUR_USER_POOL_ID') {
-      this.userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
-      this.initialized = true;
-    }
+    this.initialized = true;
   }
 
   async login(email, password) {
-    return new Promise((resolve, reject) => {
-      if (!this.initialized) {
-        reject(new Error('Cognito not configured. Please set up Amazon Cognito first.'));
-        return;
+    try {
+      const { isSignedIn } = await signIn({
+        username: email,
+        password: password,
+      });
+
+      if (isSignedIn) {
+        localStorage.setItem('userEmail', email);
+        return { success: true, user: email };
+      } else {
+        throw new Error('Login failed - user not signed in');
       }
-
-      const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({
-        Username: email,
-        Password: password
-      });
-
-      const cognitoUser = new AmazonCognitoIdentity.CognitoUser({
-        Username: email,
-        Pool: this.userPool
-      });
-
-      cognitoUser.authenticateUser(authDetails, {
-        onSuccess: (result) => {
-          const accessToken = result.getAccessToken().getJwtToken();
-          const idToken = result.getIdToken().getJwtToken();
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('idToken', idToken);
-          localStorage.setItem('userEmail', email);
-          resolve({ success: true, user: email });
-        },
-        onFailure: (err) => {
-          reject(new Error(err.message || 'Login failed'));
-        }
-      });
-    });
-  }
-
-  async signup(email, password) {
-    return new Promise((resolve, reject) => {
-      if (!this.initialized) {
-        reject(new Error('Cognito not configured. Please set up Amazon Cognito first.'));
-        return;
-      }
-
-      this.userPool.signUp(email, password, [], null, (err, result) => {
-        if (err) {
-          reject(new Error(err.message || 'Signup failed'));
-          return;
-        }
-        resolve({ success: true, userSub: result.userSub });
-      });
-    });
-  }
-
-  getCurrentUser() {
-    return this.userPool?.getCurrentUser();
-  }
-
-  logout() {
-    const cognitoUser = this.getCurrentUser();
-    if (cognitoUser) {
-      cognitoUser.signOut();
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('idToken');
-      localStorage.removeItem('userEmail');
+    } catch (error) {
+      throw new Error(error.message || 'Login failed');
     }
   }
 
-  isLoggedIn() {
-    return !!localStorage.getItem('accessToken');
+  async signup(email, password) {
+    try {
+      const { userId } = await signUp({
+        username: email,
+        password: password,
+        options: {
+          userAttributes: {
+            email: email,
+          },
+        },
+      });
+
+      return { success: true, userSub: userId };
+    } catch (error) {
+      throw new Error(error.message || 'Signup failed');
+    }
+  }
+
+  async getCurrentUser() {
+    try {
+      return await getCurrentUser();
+    } catch {
+      return null;
+    }
+  }
+
+  async logout() {
+    try {
+      await signOut();
+      localStorage.removeItem('userEmail');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  }
+
+  async isLoggedIn() {
+    try {
+      await getCurrentUser();
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -231,8 +215,9 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
 });
 
 // Auto-redirect if already logged in
-window.addEventListener('load', () => {
-  if (auth.isLoggedIn()) {
+window.addEventListener('load', async () => {
+  const isLoggedIn = await auth.isLoggedIn();
+  if (isLoggedIn) {
     window.location.href = '/index.html';
   }
 });

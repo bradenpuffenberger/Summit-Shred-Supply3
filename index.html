@@ -490,22 +490,50 @@
       updateCartUI();
     </script>
 
-    <!-- Auth Protection & Logout -->
-    <script src="/auth.js"></script>
-    <script>
+    <!-- Amplify Gen 2 Auth Protection & Logout -->
+    <script type="module">
+      import { Amplify } from 'https://cdn.jsdelivr.net/npm/aws-amplify@6/+esm';
+      import { signOut, getCurrentUser } from 'https://cdn.jsdelivr.net/npm/aws-amplify@6/auth/+esm';
+      
+      // Get config - will be generated after amplify push
+      const getConfig = async () => {
+        try {
+          const response = await fetch('./amplifyconfiguration.json');
+          return await response.json();
+        } catch {
+          console.warn('amplifyconfiguration.json not found. Please run: amplify push');
+          return null;
+        }
+      };
+
+      // Initialize Amplify
+      getConfig().then(config => {
+        if (config) {
+          Amplify.configure(config);
+        }
+      });
+
       // Logout button handler
       const logoutBtn = document.getElementById('logoutBtn');
       if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-          auth.logout();
-          window.location.href = '/auth.html';
+        logoutBtn.addEventListener('click', async () => {
+          try {
+            await signOut();
+            window.location.href = '/auth.html';
+          } catch (error) {
+            console.error('Logout error:', error);
+          }
         });
       }
 
       // Protect page - redirect to login if not authenticated
-      window.addEventListener('load', () => {
-        if (!auth.isLoggedIn()) {
-          window.location.href = '/auth.html';
+      window.addEventListener('load', async () => {
+        try {
+          await getCurrentUser();
+        } catch (error) {
+          if (!window.location.pathname.includes('auth')) {
+            window.location.href = '/auth.html';
+          }
         }
       });
     </script>
