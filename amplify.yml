@@ -7,13 +7,8 @@ frontend:
       commands:
         - echo "Building static site"
   artifacts:
-    baseDirectory: /
+    baseDirectory: .
     files:
-      - index.html
-      - homePage.html
-      - homePage.css
-      - items.js
-      - images/**/*
-      - HomePage/**/*
+      - '**/*'
   cache:
     paths: []
