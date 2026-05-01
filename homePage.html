@@ -7,8 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="homepage.css" />
-    <script src="../items.js"></script>
+    <link rel="stylesheet" href="homePage.css" />
+    <script src="items.js"></script>
   </head>
 
   <body>
@@ -313,7 +313,7 @@
           card.className = 'card';
           card.setAttribute('data-id', item.id);
 
-          const imageUrl = (item.imageUrls && item.imageUrls[0]) || '../images/placeholder.jpg';
+          const imageUrl = (item.imageUrls && item.imageUrls[0]) || 'images/placeholder.jpg';
           const inCart = cart[item.id] || 0;
 
           card.innerHTML = `
@@ -390,7 +390,7 @@
         detailBody.innerHTML = `
           <div class="detail">
             <div class="detail__img-wrap">
-              <img class="detail__img" src="${item.imageUrls[0] || '../images/placeholder.jpg'}" alt="${item.itemName}" />
+              <img class="detail__img" src="${item.imageUrls[0] || 'images/placeholder.jpg'}" alt="${item.itemName}" />
             </div>
             <div class="detail__info">
               <span class="card__cat-badge">${item.category}</span>
