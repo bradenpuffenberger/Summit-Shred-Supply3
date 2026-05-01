@@ -6,7 +6,6 @@ frontend:
     build:
       commands:
         - echo "Building static site"
-        - cp homePage.html index.html
   artifacts:
     baseDirectory: .
     files:
