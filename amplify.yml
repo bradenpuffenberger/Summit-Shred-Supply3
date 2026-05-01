@@ -12,4 +12,3 @@ frontend:
       - '**/*'
   cache:
     paths: []
-appRoot: /
