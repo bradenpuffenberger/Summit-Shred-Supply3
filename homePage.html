@@ -351,12 +351,8 @@
           const card = document.createElement('article');
           card.className = 'card';
           card.setAttribute('data-id', item.id);
-<<<<<<< Updated upstream:homePage.html
 
           const imageUrl = (item.imageUrls && item.imageUrls[0]) || 'images/placeholder.jpg';
-=======
-          const imageUrl = (item.imageUrls && item.imageUrls[0]) || '../images/placeholder.jpg';
->>>>>>> Stashed changes:HomePage/homePage.html
           const inCart = cart[item.id] || 0;
           card.innerHTML = `
             <div class="card__img-wrap">
