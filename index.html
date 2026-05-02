@@ -278,7 +278,7 @@
               <div class="stat__lbl">In Cart</div>
             </div>
             <div class="stat">
-              <div class="stat__val" id="statWishlist">0</div>
+              <div class="stat__val" id="statWishlist" title="0 wish list items">0</div>
               <div class="stat__lbl">Wish List</div>
             </div>
             <div class="stat">
@@ -316,6 +316,7 @@
         displayName: 'Signed out',
         email: '',
         memberSince: null,
+        wishlist: [],
         wishlistCount: 0,
         ordersCount: 0
       };
@@ -338,6 +339,7 @@
       const profileSince = document.getElementById('profileSince');
       const statWishlist = document.getElementById('statWishlist');
       const statOrders   = document.getElementById('statOrders');
+      const profileBtn   = document.getElementById('profileBtn');
 
       function storageKey(name) {
         return `summit:${profileState.userKey}:${name}`;
@@ -357,12 +359,43 @@
         } catch {
           setCart({});
         }
-        profileState.wishlistCount = Number(localStorage.getItem(storageKey('wishlistCount')) || 0);
+        try {
+          profileState.wishlist = JSON.parse(localStorage.getItem(storageKey('wishlist')) || '[]')
+            .map(Number)
+            .filter(id => Number.isFinite(id));
+        } catch {
+          profileState.wishlist = [];
+        }
+        profileState.wishlistCount = profileState.wishlist.length;
         profileState.ordersCount = Number(localStorage.getItem(storageKey('ordersCount')) || 0);
       }
 
       function saveCart() {
         if (profileState.signedIn) localStorage.setItem(storageKey('cart'), JSON.stringify(cart));
+      }
+
+      function saveWishlist() {
+        profileState.wishlistCount = profileState.wishlist.length;
+        if (profileState.signedIn) localStorage.setItem(storageKey('wishlist'), JSON.stringify(profileState.wishlist));
+      }
+
+      function isWishlisted(id) {
+        return profileState.wishlist.includes(Number(id));
+      }
+
+      function toggleWishlist(id) {
+        const itemId = Number(id);
+        if (!Number.isFinite(itemId)) return;
+        if (isWishlisted(itemId)) {
+          profileState.wishlist = profileState.wishlist.filter(savedId => savedId !== itemId);
+        } else {
+          profileState.wishlist = [...profileState.wishlist, itemId];
+        }
+        saveWishlist();
+        updateProfileUI();
+        renderGrid();
+        const item = ITEMS.find(entry => entry.id === itemId);
+        if (item) showToast(`${isWishlisted(itemId) ? 'Added' : 'Removed'} "${item.itemName}" ${isWishlisted(itemId) ? 'to' : 'from'} wish list`);
       }
 
       function initialsFromName(name) {
@@ -386,8 +419,12 @@
         if (profileName) profileName.textContent = profileState.displayName || profileState.email || 'Signed out';
         if (profileSince) profileSince.textContent = formatMemberSince(profileState.memberSince);
         if (statItems) statItems.textContent = getTotalCartCount();
-        if (statWishlist) statWishlist.textContent = profileState.wishlistCount;
+        if (statWishlist) {
+          statWishlist.textContent = profileState.wishlistCount;
+          statWishlist.title = `${profileState.wishlistCount} wish list item${profileState.wishlistCount === 1 ? '' : 's'}`;
+        }
         if (statOrders) statOrders.textContent = profileState.ordersCount;
+        if (profileBtn) profileBtn.title = `Profile - ${profileState.wishlistCount} wish list item${profileState.wishlistCount === 1 ? '' : 's'}`;
       }
 
       function setAuthLocked(locked) {
@@ -408,6 +445,7 @@
         profileState.displayName = 'Signed out';
         profileState.email = '';
         profileState.memberSince = null;
+        profileState.wishlist = [];
         profileState.wishlistCount = 0;
         profileState.ordersCount = 0;
         setCart({});
@@ -483,10 +521,16 @@
 
           const imageUrl = (item.imageUrls && item.imageUrls[0]) || 'images/placeholder.jpg';
           const inCart = cart[item.id] || 0;
+          const wished = isWishlisted(item.id);
           card.innerHTML = `
             <div class="card__img-wrap">
               <img class="card__img" src="${imageUrl}" alt="${item.itemName}" loading="lazy" />
               <span class="card__cat-badge">${item.category}</span>
+              <button class="wishlist-btn wishlist-btn--card${wished ? ' is-active' : ''}" data-wishlist-id="${item.id}" type="button" aria-label="${wished ? 'Remove from wish list' : 'Add to wish list'}" title="${wished ? 'Remove from wish list' : 'Add to wish list'}">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 2.7l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.6l-5.8 3 1.1-6.5-4.7-4.6 6.5-.9L12 2.7z"/>
+                </svg>
+              </button>
               <div class="card__overlay"><span class="card__quick-view">Quick View</span></div>
             </div>
             <div class="card__body">
@@ -532,7 +576,13 @@
 
       itemsGrid.addEventListener('click', e => {
         const btn  = e.target.closest('.add-to-cart');
+        const wishBtn = e.target.closest('[data-wishlist-id]');
         const card = e.target.closest('.card');
+        if (wishBtn) {
+          e.stopPropagation();
+          toggleWishlist(wishBtn.dataset.wishlistId);
+          return;
+        }
         if (btn) {
           e.stopPropagation();
           const id = Number(btn.dataset.id);
@@ -556,10 +606,16 @@
         if (!item) return;
         detailTitle.textContent = item.itemName;
         const inCart = cart[id] || 0;
+        const wished = isWishlisted(id);
         detailBody.innerHTML = `
           <div class="detail">
             <div class="detail__img-wrap">
               <img class="detail__img" src="${item.imageUrls[0] || 'images/placeholder.jpg'}" alt="${item.itemName}" />
+              <button class="wishlist-btn wishlist-btn--detail${wished ? ' is-active' : ''}" data-detail-wishlist="${item.id}" type="button" aria-label="${wished ? 'Remove from wish list' : 'Add to wish list'}" title="${wished ? 'Remove from wish list' : 'Add to wish list'}">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 2.7l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.6l-5.8 3 1.1-6.5-4.7-4.6 6.5-.9L12 2.7z"/>
+                </svg>
+              </button>
             </div>
             <div class="detail__info">
               <h2 class="detail__name">${item.itemName}</h2>
@@ -577,6 +633,15 @@
           showToast(`Added "${item.itemName}" to cart`);
           renderGrid();
           detailBody.querySelector('.detail__cta').textContent = `In cart (${cart[id]}) — add more`;
+        });
+        detailBody.querySelector('[data-detail-wishlist]').addEventListener('click', e => {
+          e.stopPropagation();
+          toggleWishlist(id);
+          const active = isWishlisted(id);
+          const detailWishBtn = detailBody.querySelector('[data-detail-wishlist]');
+          detailWishBtn.classList.toggle('is-active', active);
+          detailWishBtn.setAttribute('aria-label', active ? 'Remove from wish list' : 'Add to wish list');
+          detailWishBtn.title = active ? 'Remove from wish list' : 'Add to wish list';
         });
         setModalOpen(detailModal, true);
       }
