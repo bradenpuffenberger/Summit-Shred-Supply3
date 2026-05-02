@@ -14,18 +14,18 @@
         align-items: center;
         justify-content: center;
         min-height: 100vh;
-        background: var(--bg);
+        background: var(--bg-solid);
         padding: 20px;
       }
 
       .auth-card {
         width: 100%;
         max-width: 420px;
-        background: var(--surface);
+        background: var(--s1);
         border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
+        border-radius: var(--r-lg);
         padding: 40px;
-        box-shadow: var(--shadow-card);
+        box-shadow: var(--sh-card);
       }
 
       .auth-header {
@@ -64,11 +64,11 @@
         padding: 12px;
         background: none;
         border: none;
-        color: var(--text-muted);
+        color: var(--text-2);
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
-        transition: color var(--transition);
+        transition: color var(--t);
         border-bottom: 2px solid transparent;
         margin-bottom: -1px;
       }
@@ -94,7 +94,7 @@
         display: block;
         font-size: 13px;
         font-weight: 600;
-        color: var(--text-muted);
+        color: var(--text-2);
         margin-bottom: 6px;
         text-transform: uppercase;
         letter-spacing: 0.3px;
@@ -103,24 +103,24 @@
       .form-group input {
         width: 100%;
         padding: 10px 12px;
-        background: var(--surface-2);
+        background: var(--s2);
         border: 1px solid var(--border);
-        border-radius: var(--radius-md);
+        border-radius: var(--r-md);
         color: var(--text);
         font-size: 14px;
-        transition: border-color var(--transition), background var(--transition);
+        transition: border-color var(--t), background var(--t);
         font-family: inherit;
       }
 
       .form-group input:focus {
         outline: none;
         border-color: var(--accent);
-        background: var(--surface-3);
+        background: var(--s3);
         box-shadow: 0 0 0 3px var(--accent-glow);
       }
 
       .form-group input::placeholder {
-        color: var(--text-subtle);
+        color: var(--text-3);
       }
 
       .form-error {
@@ -140,16 +140,16 @@
         background: var(--accent);
         color: white;
         border: none;
-        border-radius: var(--radius-md);
+        border-radius: var(--r-md);
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
-        transition: background var(--transition), box-shadow var(--transition);
+        transition: background var(--t), box-shadow var(--t);
         margin-top: 8px;
       }
 
       .auth-button:hover {
-        background: var(--accent-hover);
+        background: var(--accent-hi);
         box-shadow: 0 0 0 3px var(--accent-glow);
       }
 
@@ -158,12 +158,23 @@
         cursor: not-allowed;
       }
 
+      .auth-button.secondary {
+        background: var(--s2);
+        color: var(--text-2);
+        border: 1px solid var(--border);
+      }
+
+      .auth-button.secondary:hover {
+        background: var(--s3);
+        color: var(--text);
+      }
+
       .auth-divider {
         display: flex;
         align-items: center;
         gap: 12px;
         margin: 24px 0;
-        color: var(--text-subtle);
+        color: var(--text-3);
         font-size: 12px;
       }
 
@@ -177,7 +188,7 @@
 
       .auth-message {
         padding: 12px;
-        border-radius: var(--radius-md);
+        border-radius: var(--r-md);
         font-size: 13px;
         margin-bottom: 16px;
         display: none;
@@ -234,8 +245,8 @@
 
         <!-- Tabs -->
         <div class="auth-tabs">
-          <button class="auth-tab active" data-tab="login">Sign In</button>
-          <button class="auth-tab" data-tab="signup">Create Account</button>
+          <button class="auth-tab active" type="button" data-tab="login">Sign In</button>
+          <button class="auth-tab" type="button" data-tab="signup">Create Account</button>
         </div>
 
         <!-- Login Form -->
@@ -277,10 +288,220 @@
 
           <button type="submit" class="auth-button" id="signupBtn">Create Account</button>
         </form>
+
+        <!-- Confirm Signup Form -->
+        <form id="confirmForm" class="auth-form">
+          <div class="form-group">
+            <label for="confirmEmail">Email</label>
+            <input type="email" id="confirmEmail" placeholder="you@example.com" required />
+            <div class="form-error" id="confirmEmailError"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="confirmCode">Confirmation Code</label>
+            <input type="text" id="confirmCode" inputmode="numeric" placeholder="123456" required />
+            <div class="form-error" id="confirmCodeError"></div>
+          </div>
+
+          <button type="submit" class="auth-button" id="confirmBtn">Confirm Email</button>
+          <button type="button" class="auth-button secondary" id="resendCodeBtn">Send New Code</button>
+        </form>
       </div>
     </div>
 
+    <script>
+      // Keep the auth tabs usable even if the Amplify module import is blocked or still loading.
+      window.addEventListener('error', event => {
+        const source = String(event.filename || event.message || '');
+        if (source.includes('auth.js') || source.includes('esm.sh') || source.includes('aws-amplify')) {
+          window.summitAuthModuleError = 'Auth failed while loading Amplify. Check your internet connection and the browser console for the blocked module URL.';
+        }
+      });
+
+      window.addEventListener('unhandledrejection', event => {
+        const reason = String(event.reason?.message || event.reason || '');
+        if (reason.includes('auth.js') || reason.includes('esm.sh') || reason.includes('aws-amplify') || reason.includes('Failed to fetch')) {
+          window.summitAuthModuleError = 'Auth failed while loading Amplify. Check your internet connection and the browser console for the blocked module URL.';
+        }
+      });
+
+      document.querySelectorAll('.auth-tab').forEach(tab => {
+        tab.addEventListener('click', event => {
+          const tabName = event.currentTarget.dataset.tab;
+          document.querySelectorAll('.auth-tab').forEach(item => {
+            item.classList.toggle('active', item.dataset.tab === tabName);
+          });
+          document.querySelectorAll('.auth-form').forEach(form => {
+            form.classList.toggle('active', form.id === `${tabName}Form`);
+          });
+          const messageEl = document.getElementById('authMessage');
+          messageEl.className = 'auth-message';
+          messageEl.textContent = '';
+        });
+      });
+
+      document.querySelectorAll('.auth-form').forEach(form => {
+        form.addEventListener('submit', async event => {
+          if (window.summitAuthModuleLoaded) return;
+          event.preventDefault();
+
+          if (form.id === 'signupForm') {
+            await fallbackSignUp();
+            return;
+          }
+
+          if (form.id === 'confirmForm') {
+            await fallbackConfirmSignUp();
+            return;
+          }
+
+          showFallbackMessage(window.summitAuthModuleError || 'Sign in is still loading Amplify. Check your internet connection and the browser console for blocked module URLs.', 'error');
+        });
+      });
+
+      document.getElementById('resendCodeBtn').addEventListener('click', async event => {
+        if (window.summitAuthModuleLoaded) return;
+        event.preventDefault();
+        await fallbackResendCode();
+      });
+
+      function showFallbackMessage(text, type) {
+        const messageEl = document.getElementById('authMessage');
+        messageEl.textContent = text;
+        messageEl.className = `auth-message show ${type}`;
+      }
+
+      function showFallbackError(fieldId, message) {
+        const errorEl = document.getElementById(fieldId);
+        if (!errorEl) return;
+        errorEl.textContent = message;
+        errorEl.classList.add('show');
+      }
+
+      function clearFallbackErrors() {
+        document.querySelectorAll('.form-error').forEach(el => {
+          el.textContent = '';
+          el.classList.remove('show');
+        });
+      }
+
+      function setFallbackForm(formName) {
+        document.querySelectorAll('.auth-tab').forEach(item => {
+          item.classList.toggle('active', item.dataset.tab === formName);
+        });
+        document.querySelectorAll('.auth-form').forEach(item => {
+          item.classList.toggle('active', item.id === `${formName}Form`);
+        });
+      }
+
+      async function getFallbackAuthConfig() {
+        for (const path of ['/amplify_outputs.json', '/amplifyconfiguration.json']) {
+          try {
+            const response = await fetch(path, { cache: 'no-store' });
+            if (!response.ok) continue;
+            const config = await response.json();
+            const auth = config.auth || config.Auth?.Cognito || {};
+            const region = auth.aws_region || auth.region;
+            const clientId = auth.user_pool_client_id || auth.userPoolClientId || auth.userPoolWebClientId;
+            if (region && clientId) return { region, clientId };
+          } catch {
+            // Try the next known config file.
+          }
+        }
+        throw new Error('Missing Amplify config. Run npx ampx sandbox so amplify_outputs.json exists.');
+      }
+
+      async function cognitoFallback(target, payload) {
+        const { region, clientId } = await getFallbackAuthConfig();
+        const response = await fetch(`https://cognito-idp.${region}.amazonaws.com/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-amz-json-1.1',
+            'X-Amz-Target': `AWSCognitoIdentityProviderService.${target}`,
+          },
+          body: JSON.stringify({ ClientId: clientId, ...payload }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || data.__type || `${target} failed`);
+        return data;
+      }
+
+      function getFallbackError(error) {
+        const message = error?.message || 'Something went wrong. Please try again.';
+        if (message.includes('UsernameExistsException')) return 'An account with that email already exists. Try signing in.';
+        if (message.includes('InvalidPasswordException')) return 'Password must meet the Cognito policy: uppercase, lowercase, number, and symbol.';
+        if (message.includes('CodeMismatchException')) return 'That confirmation code is not correct.';
+        if (message.includes('ExpiredCodeException')) return 'That confirmation code expired. Send a new code and try again.';
+        return message;
+      }
+
+      async function fallbackSignUp() {
+        clearFallbackErrors();
+        const email = document.getElementById('signupEmail').value.trim();
+        const password = document.getElementById('signupPassword').value;
+        const confirmPassword = document.getElementById('signupConfirmPassword').value;
+
+        if (!email) return showFallbackError('signupEmailError', 'Email is required');
+        if (!password) return showFallbackError('signupPasswordError', 'Password is required');
+        if (password.length < 8) return showFallbackError('signupPasswordError', 'Password must be at least 8 characters');
+        if (password !== confirmPassword) return showFallbackError('signupConfirmError', 'Passwords do not match');
+
+        try {
+          await cognitoFallback('SignUp', {
+            Username: email,
+            Password: password,
+            UserAttributes: [{ Name: 'email', Value: email }],
+          });
+          document.getElementById('confirmEmail').value = email;
+          document.getElementById('signupForm').reset();
+          setFallbackForm('confirm');
+          showFallbackMessage('Account created. Enter the confirmation code from your email.', 'success');
+        } catch (error) {
+          showFallbackMessage(getFallbackError(error), 'error');
+        }
+      }
+
+      async function fallbackConfirmSignUp() {
+        clearFallbackErrors();
+        const email = document.getElementById('confirmEmail').value.trim();
+        const code = document.getElementById('confirmCode').value.trim();
+
+        if (!email) return showFallbackError('confirmEmailError', 'Email is required');
+        if (!code) return showFallbackError('confirmCodeError', 'Confirmation code is required');
+
+        try {
+          await cognitoFallback('ConfirmSignUp', {
+            Username: email,
+            ConfirmationCode: code,
+          });
+          document.getElementById('loginEmail').value = email;
+          document.getElementById('confirmForm').reset();
+          setFallbackForm('login');
+          showFallbackMessage('Email confirmed. You can sign in now.', 'success');
+        } catch (error) {
+          showFallbackMessage(getFallbackError(error), 'error');
+        }
+      }
+
+      async function fallbackResendCode() {
+        clearFallbackErrors();
+        const email = document.getElementById('confirmEmail').value.trim();
+        if (!email) return showFallbackError('confirmEmailError', 'Email is required to resend a code');
+
+        try {
+          await cognitoFallback('ResendConfirmationCode', { Username: email });
+          showFallbackMessage('A new confirmation code was sent.', 'success');
+        } catch (error) {
+          showFallbackMessage(getFallbackError(error), 'error');
+        }
+      }
+    </script>
+
     <!-- Amplify Gen 2 Auth -->
-    <script type="module" src="/auth.js"></script>
+    <script
+      type="module"
+      src="/auth.js"
+      onerror="window.summitAuthModuleError = 'Auth failed to load /auth.js. Use Live Server from the project root and check the browser console for the blocked file.'"
+    ></script>
   </body>
 </html>

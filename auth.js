@@ -1,103 +1,62 @@
 // Amplify Gen 2 Authentication Handler
-// This file handles login, signup, and session management
+// This file is loaded directly in the browser, so it uses CDN ESM imports.
 
-import { Amplify } from 'aws-amplify';
-import { signIn, signUp, signOut, getCurrentUser } from 'aws-amplify/auth';
-import amplifyconfig from './amplifyconfiguration.json';
+import { Amplify } from 'https://esm.sh/aws-amplify@6.16.4?bundle';
+import {
+  confirmSignUp,
+  getCurrentUser,
+  resendSignUpCode,
+  signIn,
+  signOut,
+  signUp,
+} from 'https://esm.sh/aws-amplify@6.16.4/auth?bundle';
 
-// Configure Amplify
-Amplify.configure(amplifyconfig);
+const CONFIG_PATHS = ['/amplify_outputs.json', '/amplifyconfiguration.json'];
 
-class CognitoAuth {
-  constructor() {
-    this.initialized = true;
-  }
+let authReady = false;
+let pendingEmail = '';
 
-  async login(email, password) {
+window.summitAuthModuleLoaded = true;
+
+const loginForm = document.getElementById('loginForm');
+const signupForm = document.getElementById('signupForm');
+const confirmForm = document.getElementById('confirmForm');
+const loginBtn = document.getElementById('loginBtn');
+const signupBtn = document.getElementById('signupBtn');
+const confirmBtn = document.getElementById('confirmBtn');
+const resendCodeBtn = document.getElementById('resendCodeBtn');
+
+async function loadAmplifyConfig() {
+  for (const path of CONFIG_PATHS) {
     try {
-      const { isSignedIn } = await signIn({
-        username: email,
-        password: password,
-      });
-
-      if (isSignedIn) {
-        localStorage.setItem('userEmail', email);
-        return { success: true, user: email };
-      } else {
-        throw new Error('Login failed - user not signed in');
-      }
-    } catch (error) {
-      throw new Error(error.message || 'Login failed');
-    }
-  }
-
-  async signup(email, password) {
-    try {
-      const { userId } = await signUp({
-        username: email,
-        password: password,
-        options: {
-          userAttributes: {
-            email: email,
-          },
-        },
-      });
-
-      return { success: true, userSub: userId };
-    } catch (error) {
-      throw new Error(error.message || 'Signup failed');
-    }
-  }
-
-  async getCurrentUser() {
-    try {
-      return await getCurrentUser();
+      const response = await fetch(path, { cache: 'no-store' });
+      if (response.ok) return await response.json();
     } catch {
-      return null;
+      // Try the next known Amplify config filename.
     }
   }
 
-  async logout() {
-    try {
-      await signOut();
-      localStorage.removeItem('userEmail');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  }
+  throw new Error('Missing Amplify config. Run `npx ampx sandbox` locally or deploy/generate outputs in Amplify.');
+}
 
-  async isLoggedIn() {
-    try {
-      await getCurrentUser();
-      return true;
-    } catch {
-      return false;
-    }
+function setButtonsDisabled(disabled) {
+  [loginBtn, signupBtn, confirmBtn, resendCodeBtn].forEach(btn => {
+    if (btn) btn.disabled = disabled;
+  });
+}
+
+function setButtonLoading(btn, loading) {
+  if (!btn) return;
+  if (loading) {
+    btn.dataset.originalText = btn.textContent;
+    btn.innerHTML = '<span class="loading"></span>';
+    btn.disabled = true;
+  } else {
+    btn.textContent = btn.dataset.originalText || btn.textContent;
+    btn.disabled = false;
   }
 }
 
-// Initialize Cognito Auth
-const auth = new CognitoAuth();
-
-// Tab switching
-document.querySelectorAll('.auth-tab').forEach(tab => {
-  tab.addEventListener('click', (e) => {
-    const tabName = e.target.dataset.tab;
-    
-    // Update active tab
-    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-    e.target.classList.add('active');
-    
-    // Update active form
-    document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
-    document.getElementById(tabName === 'login' ? 'loginForm' : 'signupForm').classList.add('active');
-    
-    // Clear messages
-    clearMessage();
-  });
-});
-
-// Helper functions
 function showMessage(text, type) {
   const messageEl = document.getElementById('authMessage');
   messageEl.textContent = text;
@@ -107,6 +66,7 @@ function showMessage(text, type) {
 function clearMessage() {
   const messageEl = document.getElementById('authMessage');
   messageEl.className = 'auth-message';
+  messageEl.textContent = '';
 }
 
 function showError(fieldId, message) {
@@ -124,17 +84,75 @@ function clearErrors() {
   });
 }
 
-// Login Form Handler
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
+function setActiveForm(formName) {
+  document.querySelectorAll('.auth-form').forEach(form => form.classList.remove('active'));
+  document.querySelectorAll('.auth-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.tab === formName));
+
+  const formMap = {
+    login: loginForm,
+    signup: signupForm,
+    confirm: confirmForm,
+  };
+
+  formMap[formName]?.classList.add('active');
+}
+
+function getFriendlyError(error) {
+  const message = error?.message || 'Something went wrong. Please try again.';
+  if (message.includes('UserAlreadyAuthenticatedException')) return 'You are already signed in. Redirecting...';
+  if (message.includes('UserNotConfirmedException')) return 'Please confirm your email with the code Cognito sent you.';
+  if (message.includes('UsernameExistsException')) return 'An account with that email already exists. Try signing in.';
+  if (message.includes('NotAuthorizedException')) return 'Incorrect email or password.';
+  if (message.includes('CodeMismatchException')) return 'That confirmation code is not correct.';
+  if (message.includes('ExpiredCodeException')) return 'That confirmation code expired. Send a new code and try again.';
+  return message;
+}
+
+async function redirectIfSignedIn() {
+  try {
+    await getCurrentUser();
+    window.location.href = '/index.html';
+  } catch {
+    // No active session, stay on auth page.
+  }
+}
+
+async function configureAuth() {
+  setButtonsDisabled(true);
+  try {
+    const config = await loadAmplifyConfig();
+    Amplify.configure(config);
+    authReady = true;
+    setButtonsDisabled(false);
+    await redirectIfSignedIn();
+  } catch (error) {
+    setButtonsDisabled(false);
+    showMessage(getFriendlyError(error), 'error');
+  }
+}
+
+document.querySelectorAll('.auth-tab').forEach(tab => {
+  tab.addEventListener('click', e => {
+    const tabName = e.currentTarget.dataset.tab;
+    clearErrors();
+    clearMessage();
+    setActiveForm(tabName);
+  });
+});
+
+loginForm.addEventListener('submit', async e => {
   e.preventDefault();
   clearErrors();
   clearMessage();
 
+  if (!authReady) {
+    showMessage('Amplify Auth is not configured yet.', 'error');
+    return;
+  }
+
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
-  const btn = document.getElementById('loginBtn');
 
-  // Validation
   if (!email) {
     showError('loginEmailError', 'Email is required');
     return;
@@ -144,37 +162,54 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     return;
   }
 
-  // Disable button and show loading
-  btn.disabled = true;
-  const originalText = btn.textContent;
-  btn.innerHTML = '<span class="loading"></span>';
-
+  setButtonLoading(loginBtn, true);
   try {
-    const result = await auth.login(email, password);
-    showMessage('Login successful! Redirecting...', 'success');
-    
-    setTimeout(() => {
+    const result = await signIn({ username: email, password });
+
+    if (result.isSignedIn) {
+      localStorage.setItem('userEmail', email);
+      showMessage('Login successful. Redirecting...', 'success');
       window.location.href = '/index.html';
-    }, 1500);
+      return;
+    }
+
+    if (result.nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
+      pendingEmail = email;
+      document.getElementById('confirmEmail').value = email;
+      setActiveForm('confirm');
+      showMessage('Check your email for the confirmation code.', 'success');
+      return;
+    }
+
+    showMessage(`Next step required: ${result.nextStep?.signInStep || 'unknown'}`, 'error');
   } catch (error) {
-    showMessage(error.message, 'error');
-    btn.disabled = false;
-    btn.textContent = originalText;
+    if (error?.name === 'UserNotConfirmedException') {
+      pendingEmail = email;
+      document.getElementById('confirmEmail').value = email;
+      setActiveForm('confirm');
+    }
+    const message = getFriendlyError(error);
+    showMessage(message, message.includes('already signed in') ? 'success' : 'error');
+    if (message.includes('already signed in')) window.location.href = '/index.html';
+  } finally {
+    setButtonLoading(loginBtn, false);
   }
 });
 
-// Signup Form Handler
-document.getElementById('signupForm').addEventListener('submit', async (e) => {
+signupForm.addEventListener('submit', async e => {
   e.preventDefault();
   clearErrors();
   clearMessage();
 
+  if (!authReady) {
+    showMessage('Amplify Auth is not configured yet. Check that amplify_outputs.json exists or that the Amplify Hosting backend build completed.', 'error');
+    return;
+  }
+
   const email = document.getElementById('signupEmail').value.trim();
   const password = document.getElementById('signupPassword').value;
   const confirmPassword = document.getElementById('signupConfirmPassword').value;
-  const btn = document.getElementById('signupBtn');
 
-  // Validation
   if (!email) {
     showError('signupEmailError', 'Email is required');
     return;
@@ -192,32 +227,93 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
     return;
   }
 
-  // Disable button and show loading
-  btn.disabled = true;
-  const originalText = btn.textContent;
-  btn.innerHTML = '<span class="loading"></span>';
-
+  setButtonLoading(signupBtn, true);
   try {
-    const result = await auth.signup(email, password);
-    showMessage('Account created! Check your email for verification.', 'success');
-    document.getElementById('signupForm').reset();
-    
-    setTimeout(() => {
-      // Switch to login tab
-      document.querySelector('[data-tab="login"]').click();
+    const result = await signUp({
+      username: email,
+      password,
+      options: {
+        userAttributes: { email },
+      },
+    });
+
+    pendingEmail = email;
+
+    if (result.isSignUpComplete || result.nextStep?.signUpStep === 'DONE') {
+      showMessage('Account created. You can sign in now.', 'success');
+      setActiveForm('login');
       document.getElementById('loginEmail').value = email;
-    }, 2000);
+      signupForm.reset();
+      return;
+    }
+
+    document.getElementById('confirmEmail').value = email;
+    signupForm.reset();
+    setActiveForm('confirm');
+    showMessage('Account created. Enter the confirmation code from your email.', 'success');
   } catch (error) {
-    showMessage(error.message, 'error');
-    btn.disabled = false;
-    btn.textContent = originalText;
+    showMessage(getFriendlyError(error), 'error');
+  } finally {
+    setButtonLoading(signupBtn, false);
   }
 });
 
-// Auto-redirect if already logged in
-window.addEventListener('load', async () => {
-  const isLoggedIn = await auth.isLoggedIn();
-  if (isLoggedIn) {
-    window.location.href = '/index.html';
+confirmForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  clearErrors();
+  clearMessage();
+
+  const email = document.getElementById('confirmEmail').value.trim() || pendingEmail;
+  const code = document.getElementById('confirmCode').value.trim();
+
+  if (!email) {
+    showError('confirmEmailError', 'Email is required');
+    return;
+  }
+  if (!code) {
+    showError('confirmCodeError', 'Confirmation code is required');
+    return;
+  }
+
+  setButtonLoading(confirmBtn, true);
+  try {
+    await confirmSignUp({ username: email, confirmationCode: code });
+    pendingEmail = '';
+    confirmForm.reset();
+    document.getElementById('loginEmail').value = email;
+    setActiveForm('login');
+    showMessage('Email confirmed. You can sign in now.', 'success');
+  } catch (error) {
+    showMessage(getFriendlyError(error), 'error');
+  } finally {
+    setButtonLoading(confirmBtn, false);
   }
 });
+
+resendCodeBtn.addEventListener('click', async () => {
+  clearErrors();
+  clearMessage();
+
+  const email = document.getElementById('confirmEmail').value.trim() || pendingEmail;
+  if (!email) {
+    showError('confirmEmailError', 'Email is required to resend a code');
+    return;
+  }
+
+  setButtonLoading(resendCodeBtn, true);
+  try {
+    await resendSignUpCode({ username: email });
+    showMessage('A new confirmation code was sent.', 'success');
+  } catch (error) {
+    showMessage(getFriendlyError(error), 'error');
+  } finally {
+    setButtonLoading(resendCodeBtn, false);
+  }
+});
+
+window.summitAuth = {
+  signOut,
+  getCurrentUser,
+};
+
+configureAuth();

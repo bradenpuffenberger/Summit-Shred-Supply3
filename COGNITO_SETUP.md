@@ -1,128 +1,131 @@
-# Setting Up Amazon Cognito with Amplify Gen 2
+# Setting Up Cognito Auth with Amplify Gen 2
 
-## Prerequisites (Windows)
+This project uses Amplify Gen 2. Auth is defined in TypeScript at `amplify/auth/resource.ts` with `defineAuth`, and the browser is configured from `amplify_outputs.json`.
 
-1. **Node.js 18+** - Download from https://nodejs.org (LTS version)
-2. **AWS Account** - Create one at https://aws.amazon.com
-3. **AWS Credentials** - Configure in AWS CLI
-4. **PowerShell or Command Prompt**
+Do not use the Gen 1 commands `amplify init`, `amplify add auth`, or `amplify push` for this repo.
 
-## Step 1: Verify Node.js Installation
+## Prerequisites
 
-**Open PowerShell and check if Node.js is installed:**
+1. Install Node.js 18 or newer.
+2. Configure AWS credentials for the account where you want the backend.
+3. Install dependencies from the repo root:
+
+```powershell
+npm ci
+```
+
+Check your tools:
 
 ```powershell
 node --version
 npm --version
+npx ampx --version
 ```
 
-If these show version numbers, go to Step 2. If not, download Node.js from https://nodejs.org (then restart PowerShell).
+## Auth Backend
 
-## Step 2: Install Amplify CLI (Gen 2)
+The Cognito User Pool is already declared here:
+
+```ts
+// amplify/auth/resource.ts
+export const auth = defineAuth({
+  loginWith: {
+    email: true,
+  },
+});
+```
+
+That means users sign up and sign in with email. Cognito sends an email confirmation code after signup, and `auth.html` now includes the confirmation-code screen.
+
+## Local Development
+
+From the project root, start an Amplify Gen 2 sandbox:
 
 ```powershell
-npm install -g @aws-amplify/cli@latest
+npx ampx sandbox
 ```
 
-**Verify installation:**
+The sandbox deploys the backend and writes `amplify_outputs.json` at the repo root. Keep the sandbox terminal running while you test.
+
+Then run the site with Live Server and open:
+
+```text
+/auth.html
+```
+
+Test this flow:
+
+1. Create an account with an email and password.
+2. Copy the confirmation code from your email.
+3. Enter the code on the confirm screen.
+4. Sign in.
+5. Confirm you land on `/index.html`.
+6. Use the logout icon to return to `/auth.html`.
+
+`amplify_outputs.json` is intentionally ignored by git. It is environment-specific and should be generated locally or by Amplify Hosting.
+
+## Amplify Hosting Deployment
+
+The repo has `amplify.yml` configured for Gen 2:
+
+```yaml
+backend:
+  phases:
+    build:
+      commands:
+        - npm ci --cache .npm --prefer-offline
+        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+```
+
+When the app is connected to Amplify Hosting as a Gen 2 app, Amplify provides `AWS_BRANCH` and `AWS_APP_ID`. The backend phase deploys the Cognito resources and generates the frontend outputs file for that branch.
+
+The frontend is a static site, so it still publishes from the repo root:
+
+```yaml
+artifacts:
+  baseDirectory: .
+  files:
+    - '**/*'
+```
+
+## Files That Matter
+
+- `amplify/auth/resource.ts`: declares Cognito email login.
+- `amplify/backend.ts`: registers auth and data resources.
+- `amplify.yml`: deploys the Gen 2 backend in Amplify Hosting.
+- `auth.html`: login, signup, and email confirmation UI.
+- `auth.js`: browser-safe Amplify Auth calls using `amplify_outputs.json`.
+- `index.html`: protects the shop page and handles logout.
+
+## Troubleshooting
+
+### Auth page says Amplify config is missing
+
+Run:
 
 ```powershell
-amplify --version
+npx ampx sandbox
 ```
 
-## Step 3: Configure AWS Credentials
+For a deployed app, confirm the Amplify Hosting build ran the backend phase successfully.
 
-```powershell
-aws configure
-```
+### Browser console shows failed imports from aws-amplify
 
-Enter your AWS Access Key ID, Secret Access Key, region (e.g., `us-east-1`), and output format (`json`).
+Make sure `auth.html` loads `/auth.js` and that `auth.js` uses the CDN imports. This repo is not bundled by Vite/Webpack, so bare imports like `import { Amplify } from 'aws-amplify'` will not work in the browser.
 
-## Step 4: Initialize Amplify Gen 2 in Your Project
+### Signup succeeds but login fails
 
-**Navigate to your project folder:**
+Confirm the account first. Cognito email auth requires the verification code sent to the user's email unless you change the backend auth policy.
 
-```powershell
-cd c:\Users\brade\Documents\GitHub\Summit-Shred-Supply
-```
+### Password is rejected
 
-**Initialize Amplify (choose Gen 2 when prompted):**
+Use the password policy shown in the generated `amplify_outputs.json`. The current backend may require uppercase, lowercase, number, and symbol characters.
 
-```powershell
-amplify init
-```
+### Amplify Hosting build cannot find `ampx`
 
-Follow the prompts:
-- Project name: `summitshredsupply`
-- Environment: `dev`
-- Description: Leave blank or add one
-- Choose authentication method: Select your AWS profile
-- When asked "Use Amplify Gen 2 template?": **Select Yes**
+Run `npm ci` during the build. This repo includes `@aws-amplify/backend-cli`, which provides `npx ampx`.
 
-## Step 5: Add Authentication to Your Backend
+## References
 
-```powershell
-amplify add auth
-```
-
-Follow the prompts:
-- Authentication method: **User name**
-- MFA: **Optional** (choose your preference)
-- User attributes to sign up: **Email**
-- Allow unauthenticated identities: **No**
-- Configure advanced settings: **No**
-
-## Step 6: Deploy Your Backend
-
-```powershell
-amplify push
-```
-
-This creates your Cognito User Pool and generates configuration files.
-
-## Step 7: Install Amplify Libraries
-
-```powershell
-npm install aws-amplify @aws-amplify/ui-react
-```
-
-## Step 8: Get Your Configuration
-
-Your configuration is automatically generated in `amplifyconfiguration.json`. The auth.js file will use this.
-
-## Step 9: Update auth.js with Gen 2 Code
-
-The auth.js file has been updated to use Amplify Gen 2. No manual updates needed.
-
-## Step 10: Test Your Setup
-
-1. Commit changes:
-   ```powershell
-   git add .
-   git commit -m "Add Amplify Gen 2 auth setup"
-   git push
-   ```
-
-2. Redeploy to Amplify Hosting
-3. Visit your site and test login/signup
-
-## Troubleshooting (Windows)
-
-### "amplify: command not found"
-- Install Amplify CLI: `npm install -g @aws-amplify/cli@latest`
-- Close and reopen PowerShell
-
-### "AWS credentials not found"
-- Run: `aws configure`
-- Enter your AWS Access Key ID and Secret Access Key
-
-### "User Pool not created"
-- Make sure `amplify push` completed successfully
-- Check AWS Console → Cognito → User Pools to verify
-
-### Files not generating
-- Delete `.amplify` folder
-- Run `amplify init` again
-
-For more info: https://docs.amplify.aws/gen2/deploy-and-host/fullstack-branching/
-
+- Amplify Gen 2 outputs: https://docs.amplify.aws/react-native/reference/amplify_outputs/
+- Amplify Gen 2 CI/CD and `pipeline-deploy`: https://docs.amplify.aws/react/deploy-and-host/fullstack-branching/custom-pipelines/

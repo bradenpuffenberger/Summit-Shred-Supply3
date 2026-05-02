@@ -2,6 +2,11 @@
   "name": "summit-shred-supply",
   "version": "0.1.0",
   "private": true,
+  "scripts": {
+    "sandbox": "ampx sandbox",
+    "generate:outputs": "ampx generate outputs",
+    "deploy:backend": "ampx pipeline-deploy"
+  },
   "devDependencies": {
     "@aws-amplify/backend": "^1.22.0",
     "@aws-amplify/backend-cli": "^1.8.2",
