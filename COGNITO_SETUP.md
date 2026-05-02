@@ -74,18 +74,26 @@ backend:
     build:
       commands:
         - npm ci --cache .npm --prefer-offline
-        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID --outputs-out-dir . --outputs-format json
 ```
 
 When the app is connected to Amplify Hosting as a Gen 2 app, Amplify provides `AWS_BRANCH` and `AWS_APP_ID`. The backend phase deploys the Cognito resources and generates the frontend outputs file for that branch.
 
-The frontend is a static site, so it still publishes from the repo root:
+The frontend is a static site, so it publishes only the browser assets from the repo root. Do not use `**/*` here after running `npm ci`, because that can publish `node_modules` and backend build files.
 
 ```yaml
 artifacts:
   baseDirectory: .
   files:
-    - '**/*'
+    - index.html
+    - auth.html
+    - auth.js
+    - auth-config.js
+    - homepage.css
+    - items.js
+    - amplify_outputs.json
+    - images/**/*
+    - HomePage/**/*
 ```
 
 ## Files That Matter
