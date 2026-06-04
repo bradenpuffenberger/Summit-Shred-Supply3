@@ -131,7 +131,7 @@ async function getProfile() {
     displayName,
     hasDisplayName: Boolean(displayName && !displayName.includes('@') && displayName !== 'Summit Rider'),
     avatarKey: appProfile?.avatarKey || '',
-    avatarUrl: appProfile?.avatarKey ? await resolveImageUrl(appProfile.avatarKey) : '',
+    avatarUrl: appProfile?.avatarKey ? await resolveImageUrl(appProfile.avatarKey).catch(() => '') : '',
   };
 }
 
@@ -151,7 +151,10 @@ async function resolveImageUrl(ref) {
 }
 
 async function resolveImageList(refs) {
-  return Promise.all((refs || []).filter(Boolean).map(resolveImageUrl));
+  const urls = await Promise.all((refs || []).filter(Boolean).map(ref =>
+    resolveImageUrl(ref).catch(() => '')
+  ));
+  return urls.filter(Boolean);
 }
 
 async function hydrateListing(listing) {
@@ -608,9 +611,11 @@ async function hydrateReport(report) {
   const listingResponse = report.listingId && Listing
     ? await Listing.get({ id: report.listingId }).catch(() => ({ data: null }))
     : { data: null };
+  const adminNote = report.listingId ? await getListingAdminNote(report.listingId).catch(() => null) : null;
   return {
     ...report,
     listing: listingResponse?.data ? await hydrateListing(listingResponse.data).catch(() => listingResponse.data) : null,
+    adminNote,
   };
 }
 
@@ -647,22 +652,38 @@ async function deleteReport(id) {
 async function updateListingAdminNotes(listingId, adminNotes) {
   await ensureReady();
   await requireAdmin();
-  const Listing = requireModel('Listing');
-  const { data, errors } = await Listing.update({
-    id: listingId,
-    adminNotes: String(adminNotes || '').trim().slice(0, 2000),
-    editedAt: new Date().toISOString(),
+  const ListingAdminNote = requireModel('ListingAdminNote');
+  const cleanNotes = String(adminNotes || '').trim().slice(0, 2000);
+  const existing = await getListingAdminNote(listingId).catch(() => null);
+  const result = existing
+    ? await ListingAdminNote.update({ id: existing.id, notes: cleanNotes })
+    : await ListingAdminNote.create({ listingId, notes: cleanNotes });
+  if (result.errors?.length) throw new Error(result.errors[0].message || 'Could not save admin notes.');
+  return result.data;
+}
+
+async function getListingAdminNote(listingId) {
+  await ensureReady();
+  await requireAdmin();
+  const ListingAdminNote = requireModel('ListingAdminNote');
+  const { data, errors } = await ListingAdminNote.list({
+    filter: { listingId: { eq: listingId } },
   });
-  if (errors?.length) throw new Error(errors[0].message || 'Could not save admin notes.');
-  return hydrateListing(data);
+  if (errors?.length) throw new Error(errors[0].message || 'Could not load admin notes.');
+  return data?.[0] || null;
 }
 
 async function deleteListingAsAdmin(listingId) {
   await ensureReady();
   await requireAdmin();
   const Listing = requireModel('Listing');
+  const adminNote = await getListingAdminNote(listingId).catch(() => null);
   const { errors } = await Listing.delete({ id: listingId });
   if (errors?.length) throw new Error(errors[0].message || 'Could not delete listing.');
+  if (adminNote?.id) {
+    const ListingAdminNote = requireModel('ListingAdminNote');
+    await ListingAdminNote.delete({ id: adminNote.id }).catch(() => null);
+  }
   return true;
 }
 

@@ -24,9 +24,6 @@ const schema = a.schema({
       longitude: a.float(),
       quantityAvailable: a.integer(),
       quantitySold: a.integer(),
-      adminNotes: a.string().authorization((allow) => [
-        allow.group('Admin').to(['read', 'update']),
-      ]),
       trustAcknowledgedAt: a.datetime(),
       status: a.ref('ListingStatus').required(),
       editedAt: a.datetime(),
@@ -117,6 +114,15 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.ownerDefinedIn('reporterSub').identityClaim('sub').to(['create', 'read']),
       allow.group('Admin').to(['read', 'update', 'delete']),
+    ]),
+
+  ListingAdminNote: a
+    .model({
+      listingId: a.id().required(),
+      notes: a.string(),
+    })
+    .authorization((allow) => [
+      allow.group('Admin').to(['read', 'create', 'update', 'delete']),
     ]),
 
   UserProfile: a

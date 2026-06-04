@@ -345,7 +345,7 @@
                 ${report.notes ? `<div class="report-notes">${escapeHtml(report.notes)}</div>` : ''}
                 <div class="report-listing">
                   <strong>${escapeHtml(listing?.title || report.listingTitle || 'Listing not found')}</strong>
-                  ${listing ? ` · ${escapeHtml(listing.category || 'Category')} · ${formatMoney(listing.price)} · ${escapeHtml(listing.status || 'ACTIVE')}` : ' · Listing may have been deleted'}
+                  ${listing ? ` - ${escapeHtml(listing.category || 'Category')} - ${formatMoney(listing.price)} - ${escapeHtml(listing.status || 'ACTIVE')}` : ' - Listing may have been deleted'}
                 </div>
               </div>
               <div class="report-actions">
@@ -357,7 +357,7 @@
               </div>
               <div class="admin-notes">
                 <label for="notes-${escapeHtml(report.id)}">Admin-only listing notes</label>
-                <textarea id="notes-${escapeHtml(report.id)}" data-admin-notes maxlength="2000" placeholder="Internal notes for this listing">${escapeHtml(listing?.adminNotes || '')}</textarea>
+                <textarea id="notes-${escapeHtml(report.id)}" data-admin-notes maxlength="2000" placeholder="Internal notes for this listing">${escapeHtml(report.adminNote?.notes || '')}</textarea>
                 <div class="report-actions">
                   <button class="btn btn--primary btn--sm" data-save-admin-notes type="button"${listing ? '' : ' disabled'}>Save Notes</button>
                 </div>
