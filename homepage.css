@@ -411,6 +411,46 @@ body.auth-locked .layout {
   font-weight: 500;
 }
 
+.marketplace-health {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: -6px 0 22px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: rgba(248,251,255,.64);
+  box-shadow: var(--sh-card);
+}
+
+body.theme-dark .marketplace-health {
+  background: rgba(10,16,32,.72);
+}
+
+.marketplace-health__eyebrow {
+  display: block;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+}
+
+.marketplace-health strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.marketplace-health__meta {
+  max-width: 620px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
 .sort-select {
   height: 36px;
   padding: 0 30px 0 12px;
@@ -484,6 +524,20 @@ body.auth-locked .layout {
   font-weight: 600;
   color: #93c5fd;
   letter-spacing: .2px;
+}
+
+.listing-qty-badge {
+  position: absolute;
+  left: 10px;
+  top: 40px;
+  padding: 3px 9px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: var(--r-pill);
+  background: rgba(34,197,94,.82);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  backdrop-filter: blur(8px);
 }
 
 .wishlist-btn {
@@ -1524,6 +1578,35 @@ body.auth-locked .layout {
 .detail__price { font-size: 28px; font-weight: 900; letter-spacing: -.6px; }
 .detail__cta { width: 100%; padding: 13px; font-size: 14.5px; }
 
+.detail__stock {
+  width: fit-content;
+  padding: 4px 9px;
+  border-radius: var(--r-pill);
+  background: var(--green-dim);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.detail__fee {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--s1);
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.detail__fee strong {
+  color: var(--text);
+  font-size: 12px;
+  text-align: right;
+}
+
 /* ── Animations ──────────────────────────────────────────────────────────────── */
 @keyframes fade-in {
   from { opacity: 0; }
@@ -1701,6 +1784,12 @@ body.auth-locked .layout {
   font-weight: 700;
 }
 
+.listing-location {
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
 .detail__seller {
   color: var(--text-2);
   font-size: 13px;
@@ -1730,10 +1819,52 @@ body.auth-locked .layout {
 }
 
 .listing-form,
-.message-form {
+.message-form,
+.report-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.listing-economics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--s1);
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.listing-economics strong {
+  color: var(--text);
+  font-size: 13px;
+  text-align: right;
+}
+
+.trust-pledge {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: rgba(34,197,94,.08);
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.trust-pledge input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--green);
+  flex: 0 0 auto;
 }
 
 .image-upload-note {
@@ -2013,6 +2144,7 @@ body.auth-locked .layout {
   .detail { grid-template-columns: 1fr; }
   .detail__img-wrap { aspect-ratio: 16/9; height: auto; }
   .chat-panel { width: calc(100vw - 32px); right: 16px; }
+  .marketplace-health { align-items: flex-start; flex-direction: column; }
 }
 
 @media (max-width: 600px) {
@@ -2030,4 +2162,13 @@ body.auth-locked .layout {
   .header-sell-btn { padding-inline: 10px; font-size: 12px; }
   .form-grid { grid-template-columns: 1fr; }
   .form-actions { align-items: stretch; flex-direction: column; }
+  .listing-economics,
+  .detail__fee {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .listing-economics strong,
+  .detail__fee strong {
+    text-align: left;
+  }
 }

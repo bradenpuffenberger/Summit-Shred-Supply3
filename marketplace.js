@@ -13,9 +13,33 @@ import {
 } from 'https://esm.sh/@aws-amplify/storage@6.14.0?deps=@aws-amplify/core@6.16.2';
 
 const CONFIG_PATHS = ['/amplify_outputs.json', '/amplifyconfiguration.json'];
+const MARKETPLACE_FEE_RATE = 0.05;
 
 let client = null;
 let readyPromise = null;
+
+function normalizeQuantity(value) {
+  const quantity = Number.parseInt(value, 10);
+  if (!Number.isFinite(quantity)) return 1;
+  return Math.min(99, Math.max(1, quantity));
+}
+
+function availableQuantity(listing) {
+  if (listing?.quantityAvailable == null) return 1;
+  const quantity = Number.parseInt(listing.quantityAvailable, 10);
+  if (!Number.isFinite(quantity)) return 1;
+  return Math.min(99, Math.max(0, quantity));
+}
+
+function marketplaceFee(price) {
+  const cents = Number(price);
+  if (!Number.isFinite(cents) || cents <= 0) return 0;
+  return Math.round(cents * MARKETPLACE_FEE_RATE);
+}
+
+function isAvailableListing(listing) {
+  return listing?.status === 'ACTIVE' && availableQuantity(listing) > 0;
+}
 
 async function loadConfig() {
   for (const path of CONFIG_PATHS) {
@@ -235,14 +259,7 @@ async function listListings() {
     filter: { status: { eq: 'ACTIVE' } },
   });
   if (errors?.length) throw new Error(errors[0].message || 'Could not load listings.');
-  const completedListingIds = new Set();
-  if (client?.models?.Order) {
-    const { data: orders } = await client.models.Order.list().catch(() => ({ data: [] }));
-    (orders || []).forEach(order => {
-      if (order.listingId) completedListingIds.add(order.listingId);
-    });
-  }
-  return Promise.all((data || []).filter(listing => !completedListingIds.has(listing.id)).map(hydrateListing));
+  return Promise.all((data || []).filter(isAvailableListing).map(hydrateListing));
 }
 
 async function listOwnListings() {
@@ -253,14 +270,7 @@ async function listOwnListings() {
     filter: { sellerSub: { eq: profile.sub } },
   });
   if (errors?.length) throw new Error(errors[0].message || 'Could not load your listings.');
-  const completedListingIds = new Set();
-  if (client?.models?.Order) {
-    const { data: orders } = await client.models.Order.list().catch(() => ({ data: [] }));
-    (orders || []).forEach(order => {
-      if (order.listingId) completedListingIds.add(order.listingId);
-    });
-  }
-  return Promise.all((data || []).filter(listing => listing.status !== 'HIDDEN' && !completedListingIds.has(listing.id)).map(hydrateListing));
+  return Promise.all((data || []).filter(listing => listing.status !== 'HIDDEN' && availableQuantity(listing) > 0).map(hydrateListing));
 }
 
 async function createListing(input) {
@@ -279,8 +289,12 @@ async function createListing(input) {
     sellerName: profile.displayName,
     sellerAvatarKey: profile.avatarKey || '',
     location: input.location || '',
+    publicLocation: input.publicLocation || input.location || '',
     latitude: input.latitude,
     longitude: input.longitude,
+    quantityAvailable: normalizeQuantity(input.quantityAvailable),
+    quantitySold: 0,
+    trustAcknowledgedAt: input.trustAcknowledgedAt || new Date().toISOString(),
     status: 'ACTIVE',
   });
   if (errors?.length) throw new Error(errors[0].message || 'Could not create listing.');
@@ -299,8 +313,11 @@ async function updateListing(input) {
     condition: input.condition,
     imageUrls: input.imageUrls || [],
     location: input.location || '',
+    publicLocation: input.publicLocation || input.location || '',
     latitude: input.latitude,
     longitude: input.longitude,
+    quantityAvailable: normalizeQuantity(input.quantityAvailable),
+    trustAcknowledgedAt: input.trustAcknowledgedAt || new Date().toISOString(),
     editedAt: new Date().toISOString(),
   });
   if (errors?.length) throw new Error(errors[0].message || 'Could not update listing.');
@@ -455,27 +472,35 @@ async function completeOrder(conversation) {
   if (errors?.length) throw new Error(errors[0].message || 'Could not complete order.');
 
   if (finished && !conversation.completedAt) {
+    const listingResponse = await Listing.get({ id: conversation.listingId }).catch(() => ({ data: null }));
+    const listing = listingResponse?.data;
+    const nextQuantity = Math.max(0, availableQuantity(listing) - 1);
+    const quantitySold = Math.max(0, Number(listing?.quantitySold || 0)) + 1;
+
     await Listing.update({
       id: conversation.listingId,
-      status: 'SOLD',
-      soldAt: now,
+      quantityAvailable: nextQuantity,
+      quantitySold,
+      status: nextQuantity > 0 ? 'ACTIVE' : 'SOLD',
+      soldAt: nextQuantity > 0 ? listing?.soldAt : now,
       buyerSub: conversation.buyerSub,
     }).catch(() => {});
 
     if (client?.models?.Order) {
-      const listing = await Listing.get({ id: conversation.listingId }).catch(() => ({ data: null }));
       await client.models.Order.create({
         conversationId: conversation.id,
         listingId: conversation.listingId,
         listingTitle: conversation.listingTitle,
-        listingDescription: listing?.data?.description,
-        listingImageUrl: listing?.data?.imageUrls?.find(Boolean),
+        listingDescription: listing?.description,
+        listingImageUrl: listing?.imageUrls?.find(Boolean),
         buyerSub: conversation.buyerSub,
         buyerName: conversation.buyerName,
         sellerSub: conversation.sellerSub,
         sellerName: conversation.sellerName,
         participantIds: conversation.participantIds || [],
-        price: listing?.data?.price,
+        price: listing?.price,
+        quantity: 1,
+        marketplaceFee: marketplaceFee(listing?.price),
         completedAt: now,
       }).catch(() => {});
     }
@@ -511,6 +536,27 @@ async function deleteConversation(id) {
   return true;
 }
 
+async function reportListing(input) {
+  await ensureReady();
+  const profile = await getProfile();
+  requireDisplayName(profile);
+  const ListingReport = requireModel('ListingReport');
+  const reason = ['MISLEADING', 'SCAM', 'PROHIBITED', 'SPAM', 'OTHER'].includes(input.reason)
+    ? input.reason
+    : 'OTHER';
+  const { data, errors } = await ListingReport.create({
+    listingId: input.listingId,
+    listingTitle: input.listingTitle || '',
+    reporterSub: profile.sub,
+    reporterName: profile.displayName,
+    reason,
+    notes: String(input.notes || '').trim().slice(0, 500),
+    status: 'OPEN',
+  });
+  if (errors?.length) throw new Error(errors[0].message || 'Could not report listing.');
+  return data;
+}
+
 window.summitMarketplace = {
   completeOrder,
   createListing,
@@ -531,6 +577,7 @@ window.summitMarketplace = {
   updateProfileAvatar,
   uploadImage,
   resolveImageUrl,
+  reportListing,
 };
 
 window.dispatchEvent(new Event('summitMarketplaceReady'));

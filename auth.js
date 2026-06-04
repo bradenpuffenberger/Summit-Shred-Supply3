@@ -17,15 +17,20 @@ const CONFIG_PATHS = ['/amplify_outputs.json', '/amplifyconfiguration.json'];
 
 let authReady = false;
 let pendingEmail = '';
+let cognitoApiConfig = null;
 
 window.summitAuthModuleLoaded = true;
 
 const loginForm = document.getElementById('loginForm');
 const signupForm = document.getElementById('signupForm');
 const confirmForm = document.getElementById('confirmForm');
+const forgotForm = document.getElementById('forgotForm');
+const resetForm = document.getElementById('resetForm');
 const loginBtn = document.getElementById('loginBtn');
 const signupBtn = document.getElementById('signupBtn');
 const confirmBtn = document.getElementById('confirmBtn');
+const forgotBtn = document.getElementById('forgotBtn');
+const resetBtn = document.getElementById('resetBtn');
 const resendCodeBtn = document.getElementById('resendCodeBtn');
 
 async function loadAmplifyConfig() {
@@ -107,7 +112,7 @@ function normalizeAmplifyConfig(config) {
 }
 
 function setButtonsDisabled(disabled) {
-  [loginBtn, signupBtn, confirmBtn, resendCodeBtn].forEach(btn => {
+  [loginBtn, signupBtn, confirmBtn, forgotBtn, resetBtn, resendCodeBtn].forEach(btn => {
     if (btn) btn.disabled = disabled;
   });
 }
@@ -159,6 +164,8 @@ function setActiveForm(formName) {
     login: loginForm,
     signup: signupForm,
     confirm: confirmForm,
+    forgot: forgotForm,
+    reset: resetForm,
   };
 
   formMap[formName]?.classList.add('active');
@@ -170,8 +177,11 @@ function getFriendlyError(error) {
   if (message.includes('UserNotConfirmedException')) return 'Please confirm your email with the code Cognito sent you.';
   if (message.includes('UsernameExistsException')) return 'An account with that email already exists. Try signing in.';
   if (message.includes('NotAuthorizedException')) return 'Incorrect email or password.';
+  if (message.includes('InvalidPasswordException')) return 'Password must meet the Cognito policy: uppercase, lowercase, number, and symbol.';
   if (message.includes('CodeMismatchException')) return 'That confirmation code is not correct.';
   if (message.includes('ExpiredCodeException')) return 'That confirmation code expired. Send a new code and try again.';
+  if (message.includes('UserNotFoundException')) return 'No account exists for that email.';
+  if (message.includes('LimitExceededException')) return 'Too many attempts. Wait a few minutes and try again.';
   return message;
 }
 
@@ -188,6 +198,7 @@ async function configureAuth() {
   setButtonsDisabled(true);
   try {
     const config = await loadAmplifyConfig();
+    cognitoApiConfig = getCognitoApiConfig(config);
     configureAmplifyAuth(config);
     authReady = true;
     setButtonsDisabled(false);
@@ -208,6 +219,42 @@ function configureAmplifyAuth(config) {
   });
 }
 
+function getCognitoApiConfig(config) {
+  const auth = config.auth || config.Auth?.Cognito || {};
+  const region =
+    auth.aws_region ||
+    auth.region ||
+    config.aws_cognito_region ||
+    config.aws_project_region ||
+    config.region;
+  const clientId =
+    auth.user_pool_client_id ||
+    auth.userPoolClientId ||
+    auth.userPoolWebClientId ||
+    config.aws_user_pools_web_client_id;
+  if (!region || !clientId) {
+    throw new Error('Missing Cognito password reset configuration.');
+  }
+  return { region, clientId };
+}
+
+async function cognitoAuthRequest(target, payload) {
+  if (!cognitoApiConfig) {
+    cognitoApiConfig = getCognitoApiConfig(await loadAmplifyConfig());
+  }
+  const response = await fetch(`https://cognito-idp.${cognitoApiConfig.region}.amazonaws.com/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-amz-json-1.1',
+      'X-Amz-Target': `AWSCognitoIdentityProviderService.${target}`,
+    },
+    body: JSON.stringify({ ClientId: cognitoApiConfig.clientId, ...payload }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || data.__type || `${target} failed`);
+  return data;
+}
+
 document.querySelectorAll('.auth-tab').forEach(tab => {
   tab.addEventListener('click', e => {
     const tabName = e.currentTarget.dataset.tab;
@@ -215,6 +262,26 @@ document.querySelectorAll('.auth-tab').forEach(tab => {
     clearMessage();
     setActiveForm(tabName);
   });
+});
+
+document.getElementById('forgotPasswordLink')?.addEventListener('click', () => {
+  clearErrors();
+  clearMessage();
+  document.getElementById('forgotEmail').value = document.getElementById('loginEmail').value.trim();
+  setActiveForm('forgot');
+});
+
+document.getElementById('forgotBackLogin')?.addEventListener('click', () => {
+  clearErrors();
+  clearMessage();
+  setActiveForm('login');
+});
+
+document.getElementById('resetBackForgot')?.addEventListener('click', () => {
+  clearErrors();
+  clearMessage();
+  document.getElementById('forgotEmail').value = document.getElementById('resetEmail').value.trim();
+  setActiveForm('forgot');
 });
 
 loginForm.addEventListener('submit', async e => {
@@ -381,6 +448,92 @@ confirmForm.addEventListener('submit', async e => {
     showMessage(getFriendlyError(error), 'error');
   } finally {
     setButtonLoading(confirmBtn, false);
+  }
+});
+
+forgotForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  clearErrors();
+  clearMessage();
+
+  if (!authReady) {
+    showMessage('Amplify Auth is not configured yet.', 'error');
+    return;
+  }
+
+  const email = document.getElementById('forgotEmail').value.trim();
+  if (!email) {
+    showError('forgotEmailError', 'Email is required');
+    return;
+  }
+
+  setButtonLoading(forgotBtn, true);
+  try {
+    await cognitoAuthRequest('ForgotPassword', { Username: email });
+    pendingEmail = email;
+    document.getElementById('resetEmail').value = email;
+    forgotForm.reset();
+    setActiveForm('reset');
+    showMessage('Reset code sent. Check your email and enter the code below.', 'success');
+  } catch (error) {
+    showMessage(getFriendlyError(error), 'error');
+  } finally {
+    setButtonLoading(forgotBtn, false);
+  }
+});
+
+resetForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  clearErrors();
+  clearMessage();
+
+  if (!authReady) {
+    showMessage('Amplify Auth is not configured yet.', 'error');
+    return;
+  }
+
+  const email = document.getElementById('resetEmail').value.trim() || pendingEmail;
+  const code = document.getElementById('resetCode').value.trim();
+  const password = document.getElementById('resetPassword').value;
+  const confirmPassword = document.getElementById('resetConfirmPassword').value;
+
+  if (!email) {
+    showError('resetEmailError', 'Email is required');
+    return;
+  }
+  if (!code) {
+    showError('resetCodeError', 'Reset code is required');
+    return;
+  }
+  if (!password) {
+    showError('resetPasswordError', 'New password is required');
+    return;
+  }
+  if (password.length < 8) {
+    showError('resetPasswordError', 'Password must be at least 8 characters');
+    return;
+  }
+  if (password !== confirmPassword) {
+    showError('resetConfirmPasswordError', 'Passwords do not match');
+    return;
+  }
+
+  setButtonLoading(resetBtn, true);
+  try {
+    await cognitoAuthRequest('ConfirmForgotPassword', {
+      Username: email,
+      ConfirmationCode: code,
+      Password: password,
+    });
+    pendingEmail = '';
+    resetForm.reset();
+    document.getElementById('loginEmail').value = email;
+    setActiveForm('login');
+    showMessage('Password reset. You can sign in now.', 'success');
+  } catch (error) {
+    showMessage(getFriendlyError(error), 'error');
+  } finally {
+    setButtonLoading(resetBtn, false);
   }
 });
 

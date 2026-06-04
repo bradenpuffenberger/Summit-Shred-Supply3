@@ -170,6 +170,28 @@
         color: var(--text);
       }
 
+      .auth-help {
+        display: flex;
+        justify-content: center;
+        margin-top: 14px;
+      }
+
+      .auth-link {
+        border: 0;
+        background: transparent;
+        color: var(--accent);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .auth-link:hover {
+        color: var(--accent-hi);
+        text-decoration: underline;
+      }
+
       .auth-divider {
         display: flex;
         align-items: center;
@@ -265,6 +287,9 @@
           </div>
 
           <button type="submit" class="auth-button" id="loginBtn">Sign In</button>
+          <div class="auth-help">
+            <button type="button" class="auth-link" id="forgotPasswordLink">Forgot password?</button>
+          </div>
         </form>
 
         <!-- Signup Form -->
@@ -312,6 +337,48 @@
 
           <button type="submit" class="auth-button" id="confirmBtn">Confirm Email</button>
           <button type="button" class="auth-button secondary" id="resendCodeBtn">Send New Code</button>
+        </form>
+
+        <!-- Forgot Password Form -->
+        <form id="forgotForm" class="auth-form">
+          <div class="form-group">
+            <label for="forgotEmail">Email</label>
+            <input type="email" id="forgotEmail" placeholder="you@example.com" required />
+            <div class="form-error" id="forgotEmailError"></div>
+          </div>
+
+          <button type="submit" class="auth-button" id="forgotBtn">Send Reset Code</button>
+          <button type="button" class="auth-button secondary" id="forgotBackLogin">Back to Sign In</button>
+        </form>
+
+        <!-- Reset Password Form -->
+        <form id="resetForm" class="auth-form">
+          <div class="form-group">
+            <label for="resetEmail">Email</label>
+            <input type="email" id="resetEmail" placeholder="you@example.com" required />
+            <div class="form-error" id="resetEmailError"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="resetCode">Reset Code</label>
+            <input type="text" id="resetCode" inputmode="numeric" placeholder="123456" required />
+            <div class="form-error" id="resetCodeError"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="resetPassword">New Password</label>
+            <input type="password" id="resetPassword" placeholder="At least 8 characters" required />
+            <div class="form-error" id="resetPasswordError"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="resetConfirmPassword">Confirm New Password</label>
+            <input type="password" id="resetConfirmPassword" placeholder="Confirm your new password" required />
+            <div class="form-error" id="resetConfirmPasswordError"></div>
+          </div>
+
+          <button type="submit" class="auth-button" id="resetBtn">Reset Password</button>
+          <button type="button" class="auth-button secondary" id="resetBackForgot">Send Another Code</button>
         </form>
       </div>
     </div>
@@ -362,14 +429,45 @@
             return;
           }
 
+          if (form.id === 'forgotForm') {
+            await fallbackForgotPassword();
+            return;
+          }
+
+          if (form.id === 'resetForm') {
+            await fallbackConfirmPasswordReset();
+            return;
+          }
+
           showFallbackMessage(window.summitAuthModuleError || 'Sign in is still loading Amplify. Check your internet connection and the browser console for blocked module URLs.', 'error');
         });
       });
 
-      document.getElementById('resendCodeBtn').addEventListener('click', async event => {
+      document.getElementById('resendCodeBtn')?.addEventListener('click', async event => {
         if (window.summitAuthModuleLoaded) return;
         event.preventDefault();
         await fallbackResendCode();
+      });
+
+      document.getElementById('forgotPasswordLink')?.addEventListener('click', () => {
+        document.getElementById('forgotEmail').value = document.getElementById('loginEmail').value.trim();
+        setFallbackForm('forgot');
+        clearFallbackErrors();
+        showFallbackMessage('Enter your email and we will send a password reset code.', 'success');
+      });
+
+      document.getElementById('forgotBackLogin')?.addEventListener('click', () => {
+        setFallbackForm('login');
+        clearFallbackErrors();
+        showFallbackMessage('', 'success');
+        document.getElementById('authMessage').className = 'auth-message';
+      });
+
+      document.getElementById('resetBackForgot')?.addEventListener('click', () => {
+        document.getElementById('forgotEmail').value = document.getElementById('resetEmail').value.trim();
+        setFallbackForm('forgot');
+        clearFallbackErrors();
+        showFallbackMessage('Send a fresh reset code for this email.', 'success');
       });
 
       function showFallbackMessage(text, type) {
@@ -439,6 +537,8 @@
         if (message.includes('InvalidPasswordException')) return 'Password must meet the Cognito policy: uppercase, lowercase, number, and symbol.';
         if (message.includes('CodeMismatchException')) return 'That confirmation code is not correct.';
         if (message.includes('ExpiredCodeException')) return 'That confirmation code expired. Send a new code and try again.';
+        if (message.includes('UserNotFoundException')) return 'No account exists for that email.';
+        if (message.includes('LimitExceededException')) return 'Too many attempts. Wait a few minutes and try again.';
         return message;
       }
 
@@ -506,6 +606,50 @@
         try {
           await cognitoFallback('ResendConfirmationCode', { Username: email });
           showFallbackMessage('A new confirmation code was sent.', 'success');
+        } catch (error) {
+          showFallbackMessage(getFallbackError(error), 'error');
+        }
+      }
+
+      async function fallbackForgotPassword() {
+        clearFallbackErrors();
+        const email = document.getElementById('forgotEmail').value.trim();
+        if (!email) return showFallbackError('forgotEmailError', 'Email is required');
+
+        try {
+          await cognitoFallback('ForgotPassword', { Username: email });
+          document.getElementById('resetEmail').value = email;
+          document.getElementById('forgotForm').reset();
+          setFallbackForm('reset');
+          showFallbackMessage('Reset code sent. Check your email and enter the code below.', 'success');
+        } catch (error) {
+          showFallbackMessage(getFallbackError(error), 'error');
+        }
+      }
+
+      async function fallbackConfirmPasswordReset() {
+        clearFallbackErrors();
+        const email = document.getElementById('resetEmail').value.trim();
+        const code = document.getElementById('resetCode').value.trim();
+        const password = document.getElementById('resetPassword').value;
+        const confirmPassword = document.getElementById('resetConfirmPassword').value;
+
+        if (!email) return showFallbackError('resetEmailError', 'Email is required');
+        if (!code) return showFallbackError('resetCodeError', 'Reset code is required');
+        if (!password) return showFallbackError('resetPasswordError', 'New password is required');
+        if (password.length < 8) return showFallbackError('resetPasswordError', 'Password must be at least 8 characters');
+        if (password !== confirmPassword) return showFallbackError('resetConfirmPasswordError', 'Passwords do not match');
+
+        try {
+          await cognitoFallback('ConfirmForgotPassword', {
+            Username: email,
+            ConfirmationCode: code,
+            Password: password,
+          });
+          document.getElementById('loginEmail').value = email;
+          document.getElementById('resetForm').reset();
+          setFallbackForm('login');
+          showFallbackMessage('Password reset. You can sign in now.', 'success');
         } catch (error) {
           showFallbackMessage(getFallbackError(error), 'error');
         }

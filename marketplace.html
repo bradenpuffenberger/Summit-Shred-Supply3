@@ -183,6 +183,16 @@
           </div>
         </div>
 
+        <section class="marketplace-health" aria-label="Marketplace trust and fees">
+          <div>
+            <span class="marketplace-health__eyebrow">Marketplace model</span>
+            <strong>5% success fee after a confirmed sale</strong>
+          </div>
+          <div class="marketplace-health__meta">
+            Seller display names, listing pledges, public-only locations, and buyer reports help fund review tools and keep fake listings down.
+          </div>
+        </section>
+
         <div class="grid" id="itemsGrid"></div>
 
         <div class="empty-state" id="emptyState" hidden>
@@ -365,6 +375,11 @@
               <input id="listingPrice" type="number" min="1" step="0.01" required />
             </label>
             <label class="field">
+              <span>Quantity Available</span>
+              <input id="listingQuantity" type="number" min="1" max="99" step="1" value="1" required />
+              <small class="field-hint">Use one listing for multiple identical items.</small>
+            </label>
+            <label class="field">
               <span>Category</span>
               <select id="listingCategory" required>
                 <option value="Snowboards">Snowboards</option>
@@ -400,9 +415,17 @@
               <span>Location</span>
               <input id="listingLocation" type="text" maxlength="120" placeholder="Denver, CO" required autocomplete="off" />
               <div class="location-suggestions location-suggestions--form" id="listingLocationSuggestions" hidden></div>
-              <small class="field-hint">Select a verified US location from the suggestions.</small>
+              <small class="field-hint">Buyers see only the approximate area.</small>
             </label>
           </div>
+          <div class="listing-economics" id="listingFeePreview">
+            <span>Marketplace fee</span>
+            <strong>Enter a price to estimate payout.</strong>
+          </div>
+          <label class="trust-pledge">
+            <input id="listingTrustPledge" type="checkbox" required />
+            <span>I confirm this listing is accurate, the photos show the item being sold, and I will respond to buyer messages.</span>
+          </label>
           <div class="form-grid">
             <label class="field">
               <span>Cover Image Upload</span>
@@ -455,6 +478,39 @@
       </div>
     </div>
 
+    <div class="modal" id="reportModal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Report listing">
+      <div class="modal__backdrop" data-close></div>
+      <div class="modal__sheet">
+        <div class="modal__head">
+          <span class="modal__title" id="reportTitle">Report Listing</span>
+          <button class="close-btn" type="button" data-close aria-label="Close report listing">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <form class="modal__body report-form" id="reportForm">
+          <label class="field">
+            <span>Reason</span>
+            <select id="reportReason" required>
+              <option value="MISLEADING">Misleading photos or description</option>
+              <option value="SCAM">Possible scam</option>
+              <option value="PROHIBITED">Prohibited item</option>
+              <option value="SPAM">Spam or duplicate listing</option>
+              <option value="OTHER">Other concern</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Notes</span>
+            <textarea id="reportNotes" rows="4" maxlength="500" placeholder="Add details for review"></textarea>
+          </label>
+          <div class="form-actions">
+            <span class="form-status" id="reportStatus"></span>
+            <button class="btn btn--secondary" type="button" data-close>Cancel</button>
+            <button class="btn btn--danger" id="reportSubmit" type="submit">Submit Report</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <script>
       // ── State ───────────────────────────────────────────────────────────────
       let activeCategory = 'All';
@@ -462,6 +518,7 @@
       let activeSortOrder = 'default';
       let marketplaceListings = [];
       let selectedMessageListing = null;
+      let selectedReportListing = null;
       let selectedInboxConversation = null;
       let inboxConversations = [];
       let profileOrders = [];
@@ -473,6 +530,7 @@
       let notifications = [];
       let notificationPollTimer = null;
       let marketplaceTheme = localStorage.getItem('summit:marketplaceTheme') || 'light';
+      const MARKETPLACE_FEE_RATE = 0.05;
       const cart = {};
       const profileState = {
         signedIn: false,
@@ -518,6 +576,9 @@
       const listingModalTitle = document.getElementById('listingModalTitle');
       const listingDelete = document.getElementById('listingDelete');
       const listingSubmit = document.getElementById('listingSubmit');
+      const listingQuantityInput = document.getElementById('listingQuantity');
+      const listingFeePreview = document.getElementById('listingFeePreview');
+      const listingTrustPledge = document.getElementById('listingTrustPledge');
       const profilePanel = document.getElementById('profilePanel');
       const displayNameForm = document.getElementById('displayNameForm');
       const displayNameInput = document.getElementById('displayNameInput');
@@ -537,6 +598,10 @@
       const messageForm  = document.getElementById('messageForm');
       const messageStatus = document.getElementById('messageStatus');
       const messageTitle = document.getElementById('messageTitle');
+      const reportModal = document.getElementById('reportModal');
+      const reportForm = document.getElementById('reportForm');
+      const reportTitle = document.getElementById('reportTitle');
+      const reportStatus = document.getElementById('reportStatus');
       const listingLocationInput = document.getElementById('listingLocation');
       const listingLocationSuggestions = document.getElementById('listingLocationSuggestions');
 
@@ -552,6 +617,10 @@
           imageRefs: listing.imageRefs || listing.imageUrls || [],
           sellerAvatarKey: listing.sellerAvatarKey || '',
           sellerAvatarUrl: listing.sellerAvatarUrl || '',
+          publicLocation: listing.publicLocation || listing.location || '',
+          quantityAvailable: normalizeListingQuantity(listing.quantityAvailable),
+          quantitySold: Math.max(0, Number.parseInt(listing.quantitySold || 0, 10) || 0),
+          trustAcknowledgedAt: listing.trustAcknowledgedAt || '',
           latitude: Number.isFinite(Number(listing.latitude)) ? Number(listing.latitude) : null,
           longitude: Number.isFinite(Number(listing.longitude)) ? Number(listing.longitude) : null,
           isMarketplaceListing: true
@@ -613,6 +682,83 @@
         return `<span class="seller-avatar">${initialsFromName(sellerLabel(item))}</span>`;
       }
 
+      function formatCurrency(cents) {
+        return '$' + (Number(cents || 0) / 100).toFixed(2);
+      }
+
+      function normalizeListingQuantity(value) {
+        const quantity = Number.parseInt(value, 10);
+        if (!Number.isFinite(quantity)) return 1;
+        return Math.min(99, Math.max(1, quantity));
+      }
+
+      function listingQuantity(item) {
+        return normalizeListingQuantity(item?.quantityAvailable);
+      }
+
+      function quantityBadge(item) {
+        const quantity = listingQuantity(item);
+        return quantity > 1 ? `<span class="listing-qty-badge">${quantity} available</span>` : '';
+      }
+
+      function marketplaceFeeCents(price) {
+        const cents = Number(price);
+        if (!Number.isFinite(cents) || cents <= 0) return 0;
+        return Math.round(cents * MARKETPLACE_FEE_RATE);
+      }
+
+      function updateListingFeePreview() {
+        if (!listingFeePreview) return;
+        const priceCents = Math.round(Number(document.getElementById('listingPrice')?.value || 0) * 100);
+        const quantity = normalizeListingQuantity(listingQuantityInput?.value || 1);
+        if (!priceCents) {
+          listingFeePreview.innerHTML = '<span>Marketplace fee</span><strong>Enter a price to estimate payout.</strong>';
+          return;
+        }
+        const fee = marketplaceFeeCents(priceCents);
+        const net = Math.max(0, priceCents - fee);
+        listingFeePreview.innerHTML = `
+          <span>5% success fee: ${formatCurrency(fee)} per sale</span>
+          <strong>Net payout: ${formatCurrency(net)} each, ${formatCurrency(net * quantity)} if all sell</strong>
+        `;
+      }
+
+      function roundPublicCoordinate(value) {
+        const number = Number(value);
+        return Number.isFinite(number) ? Number(number.toFixed(1)) : null;
+      }
+
+      function publicLocationFromText(value) {
+        const parts = String(value || '')
+          .split(',')
+          .map(part => part.trim())
+          .filter(Boolean)
+          .filter(part => !/^(united states|usa|us)$/i.test(part))
+          .filter(part => !/^\d{5}(?:-\d{4})?$/.test(part));
+        if (!parts.length) return '';
+        const state = parts[parts.length - 1];
+        const city = parts
+          .slice(0, -1)
+          .find(part => !/\d/.test(part) && !/\b(county|street|st\.?|road|rd\.?|avenue|ave\.?|drive|dr\.?|lane|ln\.?|boulevard|blvd\.?)\b/i.test(part));
+        return [city || parts[0], state].filter(Boolean).join(', ');
+      }
+
+      function publicLocationFromResult(result) {
+        const address = result.address || {};
+        const city = address.city || address.town || address.village || address.hamlet || address.municipality || address.county;
+        const state = address.state || address.region || '';
+        return [city, state].filter(Boolean).join(', ') || publicLocationFromText(result.label || result.display_name);
+      }
+
+      function publicLocationLabel(item) {
+        return publicLocationFromText(item?.publicLocation || item?.location || '');
+      }
+
+      function publicLocationMarkup(item, prefix = 'Approx. location') {
+        const label = publicLocationLabel(item);
+        return label ? `<span class="listing-location">${prefix}: ${label} area</span>` : '';
+      }
+
       function distanceMiles(a, b) {
         if (!a || !b) return Infinity;
         const toRad = value => value * Math.PI / 180;
@@ -650,6 +796,8 @@
         if (!response.ok) return [];
         const results = (await response.json()).map(result => ({
           label: result.display_name,
+          address: result.address || {},
+          publicLabel: publicLocationFromResult({ address: result.address || {}, label: result.display_name }),
           latitude: Number(result.lat),
           longitude: Number(result.lon),
         })).filter(result => Number.isFinite(result.latitude) && Number.isFinite(result.longitude));
@@ -819,7 +967,7 @@
             <img class="profile-item__img" src="${imageUrl}" alt="${item.itemName}" />
             <div class="profile-item__body">
               <div class="profile-item__title">${item.itemName}</div>
-              <div class="profile-item__meta">$${(item.price / 100).toFixed(2)}${item.location ? ` - ${item.location}` : ''}</div>
+              <div class="profile-item__meta">${formatCurrency(item.price)}${publicLocationLabel(item) ? ` - ${publicLocationLabel(item)} area` : ''}${listingQuantity(item) > 1 ? ` - ${listingQuantity(item)} available` : ''}</div>
               ${renderEditedNote(item)}
             </div>
             <button class="btn btn--secondary btn--sm" ${actionAttr}="${item.id}" type="button">${actionLabel}</button>
@@ -857,7 +1005,7 @@
                 <div class="profile-item__body">
                   <div class="profile-item__title">${order.listingTitle || 'Completed order'}</div>
                   <div class="profile-item__meta">
-                    Completed ${formatEditedAt(order.completedAt).replace('Listing edited ', '')}${order.price ? ` - $${(order.price / 100).toFixed(2)}` : ''}
+                    Completed ${formatEditedAt(order.completedAt).replace('Listing edited ', '')}${order.price ? ` - ${formatCurrency(order.price)}` : ''}
                   </div>
                 </div>
                 <div class="profile-item__actions">
@@ -899,8 +1047,14 @@
             </div>
             <div class="order-detail__row">
               <span>Price</span>
-              <strong>${order.price ? `$${(order.price / 100).toFixed(2)}` : 'Not recorded'}</strong>
+              <strong>${order.price ? formatCurrency(order.price) : 'Not recorded'}</strong>
             </div>
+            ${order.marketplaceFee ? `
+              <div class="order-detail__row">
+                <span>Marketplace fee</span>
+                <strong>${formatCurrency(order.marketplaceFee)}</strong>
+              </div>
+            ` : ''}
             <div class="order-detail__row">
               <span>Buyer</span>
               <strong>${publicName(order.buyerName, 'Buyer')}</strong>
@@ -1159,6 +1313,7 @@
             <div class="card__img-wrap">
               <img class="card__img" src="${imageUrl}" alt="${item.itemName}" loading="lazy" />
               <span class="card__cat-badge">${item.category}</span>
+              ${quantityBadge(item)}
               ${imageAction}
               <div class="card__overlay"><span class="card__quick-view">Quick View</span></div>
             </div>
@@ -1166,10 +1321,11 @@
               <div class="card__name">${item.itemName}</div>
               <div class="card__desc">${item.description.substring(0, 90)}...</div>
               <div class="card__seller">${sellerAvatarMarkup(item)}<span>Listed by ${sellerLabel(item)}</span></div>
+              ${publicLocationMarkup(item)}
               ${distanceOrigin && Number.isFinite(distanceMiles(distanceOrigin, item)) ? `<div class="card__distance">${distanceMiles(distanceOrigin, item).toFixed(1)} miles away</div>` : ''}
               ${renderEditedNote(item)}
               <div class="card__footer">
-                <span class="card__price">$${(item.price / 100).toFixed(2)}</span>
+                <span class="card__price">${formatCurrency(item.price)}</span>
                 ${actionButton}
               </div>
             </div>
@@ -1254,7 +1410,9 @@
             </button>`;
         const detailAction = ownListing
           ? ''
-          : `<button class="btn btn--primary detail__message" data-message-detail="${item.id}" type="button">Message Seller</button>`;
+          : `<button class="btn btn--primary detail__message" data-message-detail="${item.id}" type="button">Message Seller</button>
+             <button class="btn btn--secondary detail__report" data-report-detail="${item.id}" type="button">Report Listing</button>`;
+        const fee = marketplaceFeeCents(item.price);
         detailBody.innerHTML = `
             <div class="detail">
               <div class="detail__img-wrap">
@@ -1268,15 +1426,22 @@
             </div>
             <div class="detail__info">
               <h2 class="detail__name">${item.itemName}</h2>
+              ${listingQuantity(item) > 1 ? `<div class="detail__stock">${listingQuantity(item)} available from this seller</div>` : ''}
               <p class="detail__desc">${item.description}</p>
-              <p class="detail__seller">${sellerAvatarMarkup(item)}<span>Listed by ${sellerLabel(item)}${item.location ? ` in ${item.location}` : ''}</span></p>
+              <p class="detail__seller">${sellerAvatarMarkup(item)}<span>Listed by ${sellerLabel(item)}</span></p>
+              ${publicLocationMarkup(item)}
               ${renderEditedNote(item)}
-              <div class="detail__price">$${(item.price / 100).toFixed(2)}</div>
+              <div class="detail__fee">
+                <span>Marketplace success fee</span>
+                <strong>${formatCurrency(fee)} after a completed sale</strong>
+              </div>
+              <div class="detail__price">${formatCurrency(item.price)}</div>
               ${detailAction}
             </div>
           </div>
         `;
         detailBody.querySelector('[data-message-detail]')?.addEventListener('click', () => openMessageModal(item.id));
+        detailBody.querySelector('[data-report-detail]')?.addEventListener('click', () => openReportModal(item.id));
         let detailImageIndex = 0;
         const setDetailImage = index => {
           detailImageIndex = (index + images.length) % images.length;
@@ -1403,10 +1568,13 @@
         listingDelete.style.display = 'none';
         listingStatus.textContent = '';
         listingForm.reset();
+        if (listingQuantityInput) listingQuantityInput.value = '1';
+        if (listingTrustPledge) listingTrustPledge.checked = false;
         uploadedListingImages = [];
         selectedListingLocation = null;
         if (listingLocationSuggestions) listingLocationSuggestions.hidden = true;
         renderListingImagePreview();
+        updateListingFeePreview();
       }
 
       function openCreateListing() {
@@ -1426,16 +1594,19 @@
         listingStatus.textContent = '';
         document.getElementById('listingTitle').value = item.itemName || '';
         document.getElementById('listingPrice').value = item.price ? (item.price / 100).toFixed(2) : '';
+        if (listingQuantityInput) listingQuantityInput.value = String(listingQuantity(item));
         document.getElementById('listingCategory').value = item.category || 'Accessories';
         document.getElementById('listingCondition').value = item.condition || 'LIKE_NEW';
-        document.getElementById('listingLocation').value = item.location || '';
+        document.getElementById('listingLocation').value = publicLocationLabel(item) || item.location || '';
         selectedListingLocation = item.latitude && item.longitude
-          ? { label: item.location || '', latitude: item.latitude, longitude: item.longitude }
+          ? { label: publicLocationLabel(item) || item.location || '', publicLabel: publicLocationLabel(item) || item.location || '', latitude: item.latitude, longitude: item.longitude }
           : null;
+        if (listingTrustPledge) listingTrustPledge.checked = true;
         document.getElementById('listingDescription').value = item.description || '';
         uploadedListingImages = (item.imageRefs?.filter(Boolean) || item.imageUrls?.filter(Boolean) || [])
           .map((ref, index) => ({ key: ref, preview: item.imageUrls?.[index] || ref, name: `image-${index + 1}.jpg` }));
         renderListingImagePreview();
+        updateListingFeePreview();
         setModalOpen(listingModal, true);
       }
 
@@ -1446,7 +1617,11 @@
         if (!selectedListingLocation || selectedListingLocation.label !== location) {
           throw new Error('Select a verified US location from the suggestions.');
         }
+        if (!listingTrustPledge?.checked) {
+          throw new Error('Confirm the listing trust pledge before publishing.');
+        }
         const coords = selectedListingLocation;
+        const publicLocation = selectedListingLocation.publicLabel || publicLocationFromText(location);
         const images = [];
         for (const image of uploadedListingImages) {
           if (image.key) {
@@ -1462,9 +1637,12 @@
           price: Math.round(priceDollars * 100),
           category: document.getElementById('listingCategory').value,
           condition: document.getElementById('listingCondition').value,
-          location,
-          latitude: coords?.latitude,
-          longitude: coords?.longitude,
+          location: publicLocation,
+          publicLocation,
+          latitude: roundPublicCoordinate(coords?.latitude),
+          longitude: roundPublicCoordinate(coords?.longitude),
+          quantityAvailable: normalizeListingQuantity(listingQuantityInput?.value || 1),
+          trustAcknowledgedAt: new Date().toISOString(),
           imageUrls: images.slice(0, 10),
         };
       }
@@ -1478,6 +1656,17 @@
         document.getElementById('messageBody').value = `Hi, is "${item.itemName}" still available?`;
         messageStatus.textContent = '';
         setModalOpen(messageModal, true);
+      }
+
+      function openReportModal(id) {
+        if (!requireDisplayNameForAction()) return;
+        const item = findItemById(id);
+        if (!item?.isMarketplaceListing || isOwnListing(item)) return;
+        selectedReportListing = item;
+        reportTitle.textContent = `Report ${item.itemName}`;
+        reportStatus.textContent = '';
+        reportForm.reset();
+        setModalOpen(reportModal, true);
       }
 
       listingForm?.addEventListener('submit', async event => {
@@ -1515,6 +1704,9 @@
           setFormBusy(submitBtn, false);
         }
       });
+
+      document.getElementById('listingPrice')?.addEventListener('input', updateListingFeePreview);
+      listingQuantityInput?.addEventListener('input', updateListingFeePreview);
 
       listingCoverFile?.addEventListener('change', async event => {
         listingStatus.textContent = '';
@@ -1592,6 +1784,35 @@
           if (chatOpen) loadInbox();
         } catch (error) {
           messageStatus.textContent = error.message || 'Could not send message.';
+        } finally {
+          setFormBusy(submitBtn, false);
+        }
+      });
+
+      reportForm?.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (!window.summitMarketplace || !selectedReportListing) {
+          reportStatus.textContent = 'Reporting is still loading. Try again in a moment.';
+          return;
+        }
+
+        const submitBtn = document.getElementById('reportSubmit');
+        setFormBusy(submitBtn, true, 'Submitting...');
+        reportStatus.textContent = '';
+
+        try {
+          await window.summitMarketplace.reportListing({
+            listingId: selectedReportListing.id,
+            listingTitle: selectedReportListing.itemName,
+            reason: document.getElementById('reportReason').value,
+            notes: document.getElementById('reportNotes').value,
+          });
+          closeAllModals();
+          showToast('Report submitted for review');
+          reportForm.reset();
+          selectedReportListing = null;
+        } catch (error) {
+          reportStatus.textContent = error.message || 'Could not submit report.';
         } finally {
           setFormBusy(submitBtn, false);
         }
@@ -1677,6 +1898,7 @@
           detailModal.classList.contains('is-open') ||
           listingModal.classList.contains('is-open') ||
           messageModal.classList.contains('is-open') ||
+          reportModal.classList.contains('is-open') ||
           document.getElementById('cartDrawer')?.classList.contains('is-open');
         document.body.classList.toggle('modal-open', anyOpen);
       }
@@ -1688,7 +1910,7 @@
       }
 
       function closeAllModals() {
-        [profileModal, detailModal, listingModal, messageModal].forEach(m => {
+        [profileModal, detailModal, listingModal, messageModal, reportModal].forEach(m => {
           m.classList.remove('is-open');
           m.setAttribute('aria-hidden', 'true');
         });
