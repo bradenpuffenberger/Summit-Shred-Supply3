@@ -250,7 +250,7 @@ async function updateProfileAvatar(blob, fileName = 'avatar.jpg') {
   await Promise.all((ownListings || []).map(listing =>
     Listing.update({ id: listing.id, sellerAvatarKey: avatarKey }).catch(() => null)
   ));
-  return { ...profile, avatarKey: appProfile.avatarKey, avatarUrl: await resolveImageUrl(appProfile.avatarKey) };
+  return { ...profile, avatarKey, avatarUrl: await resolveImageUrl(avatarKey).catch(() => '') };
 }
 
 function requireModel(name) {

@@ -673,13 +673,17 @@
         return false;
       }
 
+      function imageFallbackAttr(path = 'images/placeholder.jpg') {
+        return `onerror="this.onerror=null;this.src='${path}';"`;
+      }
+
       function sellerLabel(item) {
         return isOwnListing(item) ? 'you' : publicName(item.sellerName, 'Summit seller');
       }
 
       function sellerAvatarMarkup(item) {
         if (item.sellerAvatarUrl) {
-          return `<img class="seller-avatar" src="${item.sellerAvatarUrl}" alt="${sellerLabel(item)}" />`;
+          return `<img class="seller-avatar" src="${item.sellerAvatarUrl}" alt="${sellerLabel(item)}" ${imageFallbackAttr()} />`;
         }
         return `<span class="seller-avatar">${initialsFromName(sellerLabel(item))}</span>`;
       }
@@ -944,7 +948,7 @@
       function updateProfileUI() {
         if (profileAvatar) {
           profileAvatar.innerHTML = profileState.avatarUrl
-            ? `<img src="${profileState.avatarUrl}" alt="${publicName(profileState.displayName, 'Profile')}" />`
+            ? `<img src="${profileState.avatarUrl}" alt="${publicName(profileState.displayName, 'Profile')}" ${imageFallbackAttr()} />`
             : initialsFromName(profileState.displayName || profileState.email);
           profileAvatar.classList.toggle('has-image', Boolean(profileState.avatarUrl));
         }
@@ -966,7 +970,7 @@
         const imageUrl = item.imageUrls?.[0] || 'images/placeholder.jpg';
         return `
           <div class="profile-item">
-            <img class="profile-item__img" src="${imageUrl}" alt="${item.itemName}" />
+            <img class="profile-item__img" src="${imageUrl}" alt="${item.itemName}" ${imageFallbackAttr()} />
             <div class="profile-item__body">
               <div class="profile-item__title">${item.itemName}</div>
               <div class="profile-item__meta">${formatCurrency(item.price)}${publicLocationLabel(item) ? ` - ${publicLocationLabel(item)} area` : ''}${listingQuantity(item) > 1 ? ` - ${listingQuantity(item)} available` : ''}</div>
@@ -1034,7 +1038,7 @@
         const imageUrl = order.listingImageUrl || 'images/placeholder.jpg';
         detailBody.innerHTML = `
           <div class="order-detail">
-            <img class="order-detail__img" src="${imageUrl}" alt="${order.listingTitle || 'Completed order'}" />
+            <img class="order-detail__img" src="${imageUrl}" alt="${order.listingTitle || 'Completed order'}" ${imageFallbackAttr()} />
             <div class="order-detail__summary">
               <h2>${order.listingTitle || 'Completed order'}</h2>
               <p>${order.listingDescription || 'No description was recorded for this order.'}</p>
@@ -1335,7 +1339,7 @@
             : `<button class="btn btn--primary btn--sm message-seller" data-id="${item.id}" type="button">Message Seller</button>`;
           card.innerHTML = `
             <div class="card__img-wrap">
-              <img class="card__img" src="${imageUrl}" alt="${item.itemName}" loading="lazy" />
+              <img class="card__img" src="${imageUrl}" alt="${item.itemName}" loading="lazy" ${imageFallbackAttr()} />
               <span class="card__cat-badge">${item.category}</span>
               ${quantityBadge(item)}
               ${imageAction}
@@ -1440,7 +1444,7 @@
         detailBody.innerHTML = `
             <div class="detail">
               <div class="detail__img-wrap">
-              <img class="detail__img" data-detail-image src="${images[0]}" alt="${item.itemName}" />
+              <img class="detail__img" data-detail-image src="${images[0]}" alt="${item.itemName}" ${imageFallbackAttr()} />
               ${images.length > 1 ? `
                 <button class="detail__arrow detail__arrow--prev" data-detail-prev type="button" aria-label="Previous image">‹</button>
                 <button class="detail__arrow detail__arrow--next" data-detail-next type="button" aria-label="Next image">›</button>
@@ -1522,7 +1526,7 @@
           const cover = uploadedListingImages[0];
           listingCoverPreview.innerHTML = cover ? `
             <div class="image-preview">
-              <img src="${cover.preview || cover.url || cover.key}" alt="Cover image preview" />
+              <img src="${cover.preview || cover.url || cover.key}" alt="Cover image preview" ${imageFallbackAttr()} />
               <span>Cover</span>
               <button type="button" data-remove-upload-image="0" aria-label="Remove cover image">x</button>
             </div>
@@ -1533,7 +1537,7 @@
             const index = galleryIndex + 1;
             return `
           <div class="image-preview">
-            <img src="${image.preview || image.url || image.key}" alt="Listing image ${index + 1}" />
+            <img src="${image.preview || image.url || image.key}" alt="Listing image ${index + 1}" ${imageFallbackAttr()} />
             <span>Image ${index + 1}</span>
             <button type="button" data-remove-upload-image="${index}" aria-label="Remove image">x</button>
           </div>
@@ -2123,7 +2127,7 @@
           const el = document.createElement('div');
           el.className = 'cart-item';
           el.innerHTML = `
-            <img class="cart-item__img" src="${imageUrl}" alt="${item.itemName}" />
+            <img class="cart-item__img" src="${imageUrl}" alt="${item.itemName}" ${imageFallbackAttr()} />
             <div class="cart-item__info">
               <div class="cart-item__name">${item.itemName}</div>
               <div class="cart-item__cat">${item.category}</div>

@@ -152,6 +152,36 @@
         background: var(--s1);
       }
 
+      .report-listing-media {
+        display: grid;
+        grid-template-columns: 112px minmax(0, 1fr);
+        gap: 12px;
+        align-items: stretch;
+      }
+
+      .report-listing-img {
+        width: 112px;
+        height: 90px;
+        border-radius: var(--r-sm);
+        object-fit: cover;
+        background: var(--s2);
+      }
+
+      .report-listing-thumbs {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+
+      .report-listing-thumb {
+        width: 42px;
+        height: 34px;
+        border-radius: 6px;
+        object-fit: cover;
+        background: var(--s2);
+      }
+
       .report-actions {
         display: flex;
         align-items: flex-start;
@@ -218,6 +248,15 @@
           align-items: stretch;
           grid-template-columns: 1fr;
           flex-direction: column;
+        }
+
+        .report-listing-media {
+          grid-template-columns: 88px minmax(0, 1fr);
+        }
+
+        .report-listing-img {
+          width: 88px;
+          height: 74px;
         }
 
         .admin-actions,
@@ -311,6 +350,15 @@
         return `<span class="report-pill ${className}">${clean}</span>`;
       }
 
+      function listingImages(listing) {
+        const images = listing?.imageUrls?.filter(Boolean) || [];
+        return images.length ? images : ['/images/placeholder.jpg'];
+      }
+
+      function imageFallbackAttr() {
+        return `onerror="this.onerror=null;this.src='/images/placeholder.jpg';"`;
+      }
+
       function showLocked(message) {
         adminToolbar.hidden = true;
         adminList.innerHTML = `
@@ -331,6 +379,7 @@
 
         adminList.innerHTML = reports.map(report => {
           const listing = report.listing;
+          const images = listingImages(listing);
           return `
             <article class="report-card" data-report-id="${escapeHtml(report.id)}">
               <div>
@@ -344,8 +393,18 @@
                 </div>
                 ${report.notes ? `<div class="report-notes">${escapeHtml(report.notes)}</div>` : ''}
                 <div class="report-listing">
-                  <strong>${escapeHtml(listing?.title || report.listingTitle || 'Listing not found')}</strong>
-                  ${listing ? ` - ${escapeHtml(listing.category || 'Category')} - ${formatMoney(listing.price)} - ${escapeHtml(listing.status || 'ACTIVE')}` : ' - Listing may have been deleted'}
+                  <div class="report-listing-media">
+                    <img class="report-listing-img" src="${escapeHtml(images[0])}" alt="${escapeHtml(listing?.title || report.listingTitle || 'Reported listing')}" loading="lazy" ${imageFallbackAttr()} />
+                    <div>
+                      <strong>${escapeHtml(listing?.title || report.listingTitle || 'Listing not found')}</strong>
+                      ${listing ? ` - ${escapeHtml(listing.category || 'Category')} - ${formatMoney(listing.price)} - ${escapeHtml(listing.status || 'ACTIVE')}` : ' - Listing may have been deleted'}
+                      ${images.length > 1 ? `
+                        <div class="report-listing-thumbs" aria-label="Listing images">
+                          ${images.slice(1, 5).map((image, index) => `<img class="report-listing-thumb" src="${escapeHtml(image)}" alt="${escapeHtml((listing?.title || report.listingTitle || 'Listing') + ' image ' + (index + 2))}" loading="lazy" ${imageFallbackAttr()} />`).join('')}
+                        </div>
+                      ` : ''}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="report-actions">
