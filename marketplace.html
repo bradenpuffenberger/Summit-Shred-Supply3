@@ -42,6 +42,7 @@
 
       <div class="header__actions">
         <button class="btn btn--primary btn--sm header-sell-btn" id="sellBtn" type="button">Sell Gear</button>
+        <a class="btn btn--secondary btn--sm header-admin-btn" id="adminBtn" href="/admin.html" hidden>Admin</a>
         <button class="icon-btn theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark mode">
           <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6"/>
@@ -570,6 +571,7 @@
       const statOrders   = document.getElementById('statOrders');
       const profileBtn   = document.getElementById('profileBtn');
       const sellBtn      = document.getElementById('sellBtn');
+      const adminBtn     = document.getElementById('adminBtn');
       const listingModal = document.getElementById('listingModal');
       const listingForm  = document.getElementById('listingForm');
       const listingStatus = document.getElementById('listingStatus');
@@ -1191,6 +1193,18 @@
         if (logoutBtnEl) logoutBtnEl.hidden = locked;
       }
 
+      async function refreshAdminLink() {
+        if (!adminBtn) return;
+        adminBtn.hidden = true;
+        if (!profileState.signedIn || !window.summitMarketplace?.getAdminStatus) return;
+        try {
+          const status = await window.summitMarketplace.getAdminStatus();
+          adminBtn.hidden = !status.isAdmin;
+        } catch {
+          adminBtn.hidden = true;
+        }
+      }
+
       function applySignedOutState() {
         profileState.signedIn = false;
         profileState.userKey = 'guest';
@@ -1204,6 +1218,7 @@
         profileState.ordersCount = 0;
         profileOrders = [];
         notifications = [];
+        if (adminBtn) adminBtn.hidden = true;
         clearInterval(notificationPollTimer);
         renderNotifications();
         setCart({});
@@ -1237,6 +1252,7 @@
         refreshMarketplaceListings();
         refreshProfileOrders();
         startNotifications();
+        refreshAdminLink();
       }
 
       authLockLogin?.addEventListener('click', () => {
@@ -1247,6 +1263,8 @@
         applySignedInState,
         applySignedOutState
       };
+
+      window.addEventListener('summitMarketplaceReady', refreshAdminLink);
 
       // ── Category counts ─────────────────────────────────────────────────────
       function initCounts() {

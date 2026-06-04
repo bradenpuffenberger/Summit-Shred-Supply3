@@ -190,10 +190,15 @@ ul { list-style: none; }
 
 .header__actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
-.header-sell-btn {
+.header-sell-btn,
+.header-admin-btn {
   height: 38px;
   padding-inline: 14px;
   white-space: nowrap;
+}
+
+.header-admin-btn[hidden] {
+  display: none;
 }
 
 /* ── Icon button ────────────────────────────────────────────────────────────── */
@@ -2159,7 +2164,8 @@ body.theme-dark .marketplace-health {
   .fab__label { display: none; }
   .content__toolbar { flex-direction: column; align-items: flex-start; }
   .chat-panel { width: calc(100vw - 24px); right: 12px; bottom: 84px; }
-  .header-sell-btn { padding-inline: 10px; font-size: 12px; }
+  .header-sell-btn,
+  .header-admin-btn { padding-inline: 10px; font-size: 12px; }
   .form-grid { grid-template-columns: 1fr; }
   .form-actions { align-items: stretch; flex-direction: column; }
   .listing-economics,

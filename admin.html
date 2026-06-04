@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Summit Shred Supply - Admin Reports</title>
+    <link rel="icon" type="image/svg+xml" href="/images/summit-shred-logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/homepage.css" />
+    <script type="module" src="/marketplace.js"></script>
+    <style>
+      body {
+        min-height: 100vh;
+      }
+
+      .admin-shell {
+        width: min(1120px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 32px 0 56px;
+      }
+
+      .admin-hero {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 22px;
+      }
+
+      .admin-kicker {
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+
+      .admin-title {
+        margin-top: 4px;
+        color: var(--text);
+        font-size: clamp(28px, 5vw, 48px);
+        line-height: 1;
+        letter-spacing: -.04em;
+      }
+
+      .admin-sub {
+        max-width: 640px;
+        margin-top: 10px;
+        color: var(--text-2);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .admin-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .admin-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 16px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        background: var(--s0);
+        box-shadow: var(--sh-card);
+      }
+
+      .admin-count {
+        color: var(--text-2);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .admin-list {
+        display: grid;
+        gap: 14px;
+      }
+
+      .report-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        background: var(--s0);
+        box-shadow: var(--sh-card);
+      }
+
+      .report-card__head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+
+      .report-title {
+        color: var(--text);
+        font-size: 16px;
+        font-weight: 900;
+      }
+
+      .report-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        padding: 0 8px;
+        border-radius: var(--r-pill);
+        background: var(--accent-dim);
+        color: var(--accent);
+        font-size: 10.5px;
+        font-weight: 900;
+      }
+
+      .report-pill--open {
+        background: rgba(239,68,68,.12);
+        color: #dc2626;
+      }
+
+      .report-pill--resolved {
+        background: var(--green-dim);
+        color: var(--green);
+      }
+
+      .report-meta,
+      .report-notes,
+      .report-listing {
+        color: var(--text-2);
+        font-size: 12.5px;
+        line-height: 1.55;
+      }
+
+      .report-notes {
+        margin-top: 8px;
+        color: var(--text);
+      }
+
+      .report-listing {
+        margin-top: 10px;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-sm);
+        background: var(--s1);
+      }
+
+      .report-actions {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .admin-empty,
+      .admin-lock {
+        padding: 34px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        background: var(--s0);
+        color: var(--text-2);
+        text-align: center;
+        box-shadow: var(--sh-card);
+      }
+
+      .admin-empty strong,
+      .admin-lock strong {
+        display: block;
+        color: var(--text);
+        font-size: 18px;
+        margin-bottom: 6px;
+      }
+
+      @media (max-width: 760px) {
+        .admin-hero,
+        .admin-toolbar,
+        .report-card {
+          align-items: stretch;
+          grid-template-columns: 1fr;
+          flex-direction: column;
+        }
+
+        .admin-actions,
+        .report-actions {
+          justify-content: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <a class="header__brand header__brand--link" href="/index.html" aria-label="Summit Shred Supply home">
+        <svg class="header__logo" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M16 3L30 27H2L16 3Z" fill="currentColor" opacity=".12"/>
+          <path d="M16 8L27 26H5L16 8Z" fill="currentColor" opacity=".28"/>
+          <path d="M16 14L22 25H10L16 14Z" fill="currentColor" opacity=".65"/>
+          <path d="M16 18L19 24H13L16 18Z" fill="currentColor"/>
+        </svg>
+        <span class="header__wordmark">Summit Shred Supply</span>
+      </a>
+      <div class="header__actions">
+        <a class="btn btn--secondary btn--sm" href="/marketplace.html">Marketplace</a>
+      </div>
+    </header>
+
+    <main class="admin-shell">
+      <section class="admin-hero">
+        <div>
+          <div class="admin-kicker">Admin</div>
+          <h1 class="admin-title">Listing Reports</h1>
+          <p class="admin-sub">Review buyer reports, mark them reviewed or resolved, and hide listings that look fake, misleading, or unsafe.</p>
+        </div>
+        <div class="admin-actions">
+          <a class="btn btn--secondary" href="/auth.html" id="loginLink">Sign In</a>
+          <button class="btn btn--primary" id="refreshReports" type="button">Refresh</button>
+        </div>
+      </section>
+
+      <div class="admin-toolbar" id="adminToolbar" hidden>
+        <span class="admin-count" id="adminCount">Loading reports...</span>
+        <select class="sort-select" id="reportStatusFilter" aria-label="Filter reports by status">
+          <option value="ALL">All Reports</option>
+          <option value="OPEN">Open</option>
+          <option value="REVIEWED">Reviewed</option>
+          <option value="RESOLVED">Resolved</option>
+        </select>
+      </div>
+
+      <section class="admin-list" id="adminList">
+        <div class="admin-empty"><strong>Loading admin tools...</strong>Checking your account permissions.</div>
+      </section>
+    </main>
+
+    <script>
+      const adminList = document.getElementById('adminList');
+      const adminToolbar = document.getElementById('adminToolbar');
+      const adminCount = document.getElementById('adminCount');
+      const reportStatusFilter = document.getElementById('reportStatusFilter');
+      const refreshReports = document.getElementById('refreshReports');
+      const loginLink = document.getElementById('loginLink');
+
+      let reports = [];
+
+      function escapeHtml(value) {
+        return String(value || '').replace(/[&<>"']/g, char => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        })[char]);
+      }
+
+      function formatDate(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 'Date unavailable';
+        return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+      }
+
+      function formatMoney(cents) {
+        return '$' + (Number(cents || 0) / 100).toFixed(2);
+      }
+
+      function reasonLabel(value) {
+        return String(value || 'OTHER').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+      }
+
+      function statusPill(status) {
+        const clean = String(status || 'OPEN');
+        const className = clean === 'OPEN' ? 'report-pill--open' : clean === 'RESOLVED' ? 'report-pill--resolved' : '';
+        return `<span class="report-pill ${className}">${clean}</span>`;
+      }
+
+      function showLocked(message) {
+        adminToolbar.hidden = true;
+        adminList.innerHTML = `
+          <div class="admin-lock">
+            <strong>Admin access required</strong>
+            ${escapeHtml(message || 'Sign in with an account assigned to the Cognito Admin group.')}
+          </div>
+        `;
+      }
+
+      function renderReports() {
+        adminToolbar.hidden = false;
+        adminCount.textContent = `${reports.length} report${reports.length === 1 ? '' : 's'}`;
+        if (!reports.length) {
+          adminList.innerHTML = '<div class="admin-empty"><strong>No reports here</strong>This queue is clear for the selected status.</div>';
+          return;
+        }
+
+        adminList.innerHTML = reports.map(report => {
+          const listing = report.listing;
+          return `
+            <article class="report-card" data-report-id="${escapeHtml(report.id)}">
+              <div>
+                <div class="report-card__head">
+                  <span class="report-title">${escapeHtml(report.listingTitle || listing?.title || 'Reported listing')}</span>
+                  ${statusPill(report.status)}
+                  <span class="report-pill">${escapeHtml(reasonLabel(report.reason))}</span>
+                </div>
+                <div class="report-meta">
+                  Reported by ${escapeHtml(report.reporterName || 'Summit rider')} on ${escapeHtml(formatDate(report.createdAt || report.updatedAt))}
+                </div>
+                ${report.notes ? `<div class="report-notes">${escapeHtml(report.notes)}</div>` : ''}
+                <div class="report-listing">
+                  <strong>${escapeHtml(listing?.title || report.listingTitle || 'Listing not found')}</strong>
+                  ${listing ? ` · ${escapeHtml(listing.category || 'Category')} · ${formatMoney(listing.price)} · ${escapeHtml(listing.status || 'ACTIVE')}` : ' · Listing may have been deleted'}
+                </div>
+              </div>
+              <div class="report-actions">
+                <button class="btn btn--secondary btn--sm" data-report-status="REVIEWED" type="button">Mark Reviewed</button>
+                <button class="btn btn--secondary btn--sm" data-report-status="RESOLVED" type="button">Resolve</button>
+                <button class="btn btn--danger btn--sm" data-hide-listing type="button"${listing ? '' : ' disabled'}>Hide Listing</button>
+              </div>
+            </article>
+          `;
+        }).join('');
+      }
+
+      async function loadReports() {
+        if (!window.summitMarketplace) return;
+        refreshReports.disabled = true;
+        adminList.innerHTML = '<div class="admin-empty"><strong>Loading reports...</strong>Pulling the latest report queue.</div>';
+        try {
+          const adminStatus = await window.summitMarketplace.getAdminStatus();
+          if (!adminStatus.isAdmin) {
+            showLocked(`Signed in, but this account is in groups: ${adminStatus.groups.join(', ') || 'none'}.`);
+            return;
+          }
+
+          loginLink.textContent = 'Signed In';
+          reports = await window.summitMarketplace.listReports(reportStatusFilter.value);
+          renderReports();
+        } catch (error) {
+          showLocked(error.message || 'Could not load admin reports.');
+        } finally {
+          refreshReports.disabled = false;
+        }
+      }
+
+      adminList.addEventListener('click', async event => {
+        const card = event.target.closest('[data-report-id]');
+        if (!card || !window.summitMarketplace) return;
+        const report = reports.find(item => String(item.id) === String(card.dataset.reportId));
+        if (!report) return;
+
+        const statusButton = event.target.closest('[data-report-status]');
+        const hideButton = event.target.closest('[data-hide-listing]');
+        const actionButton = statusButton || hideButton;
+        if (!actionButton) return;
+
+        actionButton.disabled = true;
+        try {
+          if (statusButton) {
+            await window.summitMarketplace.updateReportStatus(report.id, statusButton.dataset.reportStatus);
+          } else {
+            await window.summitMarketplace.hideListingFromReport(report);
+          }
+          await loadReports();
+        } catch (error) {
+          actionButton.disabled = false;
+          alert(error.message || 'Could not update report.');
+        }
+      });
+
+      reportStatusFilter.addEventListener('change', loadReports);
+      refreshReports.addEventListener('click', loadReports);
+
+      window.addEventListener('summitMarketplaceReady', loadReports);
+      if (window.summitMarketplace) loadReports();
+    </script>
+  </body>
+</html>

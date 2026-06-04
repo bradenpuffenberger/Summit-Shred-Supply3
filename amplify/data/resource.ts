@@ -34,6 +34,7 @@ const schema = a.schema({
       allow.owner(),
       allow.ownerDefinedIn('sellerSub').identityClaim('sub'),
       allow.authenticated().to(['read']),
+      allow.group('Admin').to(['read', 'update']),
     ]),
 
   Conversation: a
@@ -107,7 +108,8 @@ const schema = a.schema({
       status: a.ref('ListingReportStatus').required(),
     })
     .authorization((allow) => [
-      allow.ownerDefinedIn('reporterSub').identityClaim('sub'),
+      allow.ownerDefinedIn('reporterSub').identityClaim('sub').to(['create', 'read']),
+      allow.group('Admin').to(['read', 'update', 'delete']),
     ]),
 
   UserProfile: a

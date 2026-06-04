@@ -1,4 +1,4 @@
-import { Amplify } from 'https://esm.sh/@aws-amplify/core@6.16.2';
+import { Amplify, fetchAuthSession } from 'https://esm.sh/@aws-amplify/core@6.16.2';
 import {
   cognitoCredentialsProvider,
   cognitoUserPoolsTokenProvider,
@@ -250,6 +250,30 @@ function requireModel(name) {
     throw new Error(`${name} is not available yet. Deploy the updated Amplify Data schema first.`);
   }
   return client.models[name];
+}
+
+function groupsFromSession(session) {
+  const idGroups = session?.tokens?.idToken?.payload?.['cognito:groups'];
+  const accessGroups = session?.tokens?.accessToken?.payload?.['cognito:groups'];
+  return [...(Array.isArray(idGroups) ? idGroups : []), ...(Array.isArray(accessGroups) ? accessGroups : [])];
+}
+
+async function getAdminStatus() {
+  await ensureReady();
+  const session = await fetchAuthSession();
+  const groups = [...new Set(groupsFromSession(session).map(String))];
+  return {
+    isAdmin: groups.includes('Admin'),
+    groups,
+  };
+}
+
+async function requireAdmin() {
+  const status = await getAdminStatus();
+  if (!status.isAdmin) {
+    throw new Error('Admin access required. Add this user to the Cognito Admin group.');
+  }
+  return status;
 }
 
 async function listListings() {
@@ -557,6 +581,54 @@ async function reportListing(input) {
   return data;
 }
 
+async function hydrateReport(report) {
+  if (!report) return report;
+  const Listing = client?.models?.Listing;
+  const listingResponse = report.listingId && Listing
+    ? await Listing.get({ id: report.listingId }).catch(() => ({ data: null }))
+    : { data: null };
+  return {
+    ...report,
+    listing: listingResponse?.data ? await hydrateListing(listingResponse.data).catch(() => listingResponse.data) : null,
+  };
+}
+
+async function listReports(status = 'ALL') {
+  await ensureReady();
+  await requireAdmin();
+  const ListingReport = requireModel('ListingReport');
+  const filter = status && status !== 'ALL' ? { status: { eq: status } } : undefined;
+  const { data, errors } = await ListingReport.list(filter ? { filter } : undefined);
+  if (errors?.length) throw new Error(errors[0].message || 'Could not load reports.');
+  const reports = await Promise.all((data || []).map(hydrateReport));
+  return reports.sort((a, b) => new Date(b.createdAt || b.updatedAt || 0) - new Date(a.createdAt || a.updatedAt || 0));
+}
+
+async function updateReportStatus(id, status) {
+  await ensureReady();
+  await requireAdmin();
+  const cleanStatus = ['OPEN', 'REVIEWED', 'RESOLVED'].includes(status) ? status : 'OPEN';
+  const ListingReport = requireModel('ListingReport');
+  const { data, errors } = await ListingReport.update({ id, status: cleanStatus });
+  if (errors?.length) throw new Error(errors[0].message || 'Could not update report.');
+  return data;
+}
+
+async function hideListingFromReport(report) {
+  await ensureReady();
+  await requireAdmin();
+  if (!report?.listingId) throw new Error('Report is missing a listing id.');
+  const Listing = requireModel('Listing');
+  const { data, errors } = await Listing.update({
+    id: report.listingId,
+    status: 'HIDDEN',
+    editedAt: new Date().toISOString(),
+  });
+  if (errors?.length) throw new Error(errors[0].message || 'Could not hide listing.');
+  if (report.id) await updateReportStatus(report.id, 'REVIEWED').catch(() => null);
+  return hydrateListing(data);
+}
+
 window.summitMarketplace = {
   completeOrder,
   createListing,
@@ -564,20 +636,24 @@ window.summitMarketplace = {
   deleteConversation,
   getConversation,
   getListing,
+  getAdminStatus,
   getProfile,
   listConversations,
   listListings,
   listOrders,
   listOwnListings,
   listMessages,
+  listReports,
   sendMessage,
   startConversation,
   updateListing,
   updateDisplayName,
   updateProfileAvatar,
+  updateReportStatus,
   uploadImage,
   resolveImageUrl,
   reportListing,
+  hideListingFromReport,
 };
 
 window.dispatchEvent(new Event('summitMarketplaceReady'));
