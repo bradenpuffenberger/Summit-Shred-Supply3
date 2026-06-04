@@ -160,6 +160,38 @@
         justify-content: flex-end;
       }
 
+      .admin-notes {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+      }
+
+      .admin-notes label {
+        color: var(--text-2);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .admin-notes textarea {
+        width: 100%;
+        min-height: 88px;
+        resize: vertical;
+        border: 1px solid var(--border);
+        border-radius: var(--r-sm);
+        background: var(--s1);
+        color: var(--text);
+        padding: 10px 12px;
+        font: inherit;
+        outline: none;
+      }
+
+      .admin-notes textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+      }
+
       .admin-empty,
       .admin-lock {
         padding: 34px;
@@ -319,7 +351,16 @@
               <div class="report-actions">
                 <button class="btn btn--secondary btn--sm" data-report-status="REVIEWED" type="button">Mark Reviewed</button>
                 <button class="btn btn--secondary btn--sm" data-report-status="RESOLVED" type="button">Resolve</button>
+                <button class="btn btn--secondary btn--sm" data-clear-report type="button">Clear Report</button>
                 <button class="btn btn--danger btn--sm" data-hide-listing type="button"${listing ? '' : ' disabled'}>Hide Listing</button>
+                <button class="btn btn--danger btn--sm" data-delete-listing type="button"${listing ? '' : ' disabled'}>Delete Listing</button>
+              </div>
+              <div class="admin-notes">
+                <label for="notes-${escapeHtml(report.id)}">Admin-only listing notes</label>
+                <textarea id="notes-${escapeHtml(report.id)}" data-admin-notes maxlength="2000" placeholder="Internal notes for this listing">${escapeHtml(listing?.adminNotes || '')}</textarea>
+                <div class="report-actions">
+                  <button class="btn btn--primary btn--sm" data-save-admin-notes type="button"${listing ? '' : ' disabled'}>Save Notes</button>
+                </div>
               </div>
             </article>
           `;
@@ -355,15 +396,30 @@
 
         const statusButton = event.target.closest('[data-report-status]');
         const hideButton = event.target.closest('[data-hide-listing]');
-        const actionButton = statusButton || hideButton;
+        const deleteListingButton = event.target.closest('[data-delete-listing]');
+        const clearReportButton = event.target.closest('[data-clear-report]');
+        const saveNotesButton = event.target.closest('[data-save-admin-notes]');
+        const actionButton = statusButton || hideButton || deleteListingButton || clearReportButton || saveNotesButton;
         if (!actionButton) return;
 
         actionButton.disabled = true;
         try {
           if (statusButton) {
             await window.summitMarketplace.updateReportStatus(report.id, statusButton.dataset.reportStatus);
-          } else {
+          } else if (hideButton) {
             await window.summitMarketplace.hideListingFromReport(report);
+          } else if (deleteListingButton) {
+            if (!confirm('Delete this listing permanently?')) {
+              actionButton.disabled = false;
+              return;
+            }
+            await window.summitMarketplace.deleteListingAsAdmin(report.listingId);
+            await window.summitMarketplace.updateReportStatus(report.id, 'RESOLVED');
+          } else if (clearReportButton) {
+            await window.summitMarketplace.deleteReport(report.id);
+          } else if (saveNotesButton) {
+            const notes = card.querySelector('[data-admin-notes]')?.value || '';
+            await window.summitMarketplace.updateListingAdminNotes(report.listingId, notes);
           }
           await loadReports();
         } catch (error) {

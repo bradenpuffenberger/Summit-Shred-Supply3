@@ -5,9 +5,10 @@ Use this when you want one account to review listing reports.
 ## What Changed
 
 - The Amplify auth resource creates a Cognito group named `Admin`.
-- `admin.html` shows the report queue only to users in that group.
+- `/admin` and `admin.html` show the report queue only to users in that group.
 - Admins can mark reports `OPEN`, `REVIEWED`, or `RESOLVED`.
 - Admins can hide a reported listing from the report queue.
+- Admins can delete listings, clear reports, and save admin-only notes on listings.
 
 ## Create Your Admin Account
 
@@ -38,7 +39,7 @@ Use this when you want one account to review listing reports.
 
 4. Sign out and sign back in so Cognito issues a fresh token with the `Admin` group claim.
 
-5. Open `/admin.html` or use the `Admin` button in the marketplace header.
+5. Open `/admin` or use the `Admin` button in the marketplace header.
 
 ## Notes
 

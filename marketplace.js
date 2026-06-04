@@ -41,6 +41,11 @@ function isAvailableListing(listing) {
   return listing?.status === 'ACTIVE' && availableQuantity(listing) > 0;
 }
 
+function normalizeItemSelection(value) {
+  const clean = String(value || '').trim().slice(0, 80);
+  return clean || 'Item 1';
+}
+
 async function loadConfig() {
   for (const path of CONFIG_PATHS) {
     try {
@@ -470,7 +475,7 @@ async function sendMessage(conversation, body) {
   return data;
 }
 
-async function completeOrder(conversation) {
+async function completeOrder(conversation, options = {}) {
   await ensureReady();
   const profile = await getProfile();
   requireDisplayName(profile);
@@ -480,17 +485,32 @@ async function completeOrder(conversation) {
   const isBuyer = profile.sub === conversation.buyerSub;
   const isSeller = profile.sub === conversation.sellerSub;
   if (!isBuyer && !isSeller) throw new Error('Only conversation participants can complete this order.');
+  const itemSelection = normalizeItemSelection(options.itemSelection);
 
   const next = {
     id: conversation.id,
+    buyerItemSelection: conversation.buyerItemSelection,
+    sellerItemSelection: conversation.sellerItemSelection,
     buyerCompletedAt: conversation.buyerCompletedAt,
     sellerCompletedAt: conversation.sellerCompletedAt,
   };
 
-  if (isBuyer && !next.buyerCompletedAt) next.buyerCompletedAt = now;
-  if (isSeller && !next.sellerCompletedAt) next.sellerCompletedAt = now;
+  if (isBuyer && !next.buyerCompletedAt) {
+    next.buyerCompletedAt = now;
+    next.buyerItemSelection = itemSelection;
+  }
+  if (isSeller && !next.sellerCompletedAt) {
+    next.sellerCompletedAt = now;
+    next.sellerItemSelection = itemSelection;
+  }
   const finished = Boolean(next.buyerCompletedAt && next.sellerCompletedAt);
-  if (finished && !conversation.completedAt) next.completedAt = now;
+  if (finished && !conversation.completedAt) {
+    if (normalizeItemSelection(next.buyerItemSelection) !== normalizeItemSelection(next.sellerItemSelection)) {
+      throw new Error('Buyer and seller selected different items. Confirm the same item before completing the order.');
+    }
+    next.completedItemSelection = normalizeItemSelection(next.buyerItemSelection);
+    next.completedAt = now;
+  }
 
   const { data, errors } = await Conversation.update(next);
   if (errors?.length) throw new Error(errors[0].message || 'Could not complete order.');
@@ -524,6 +544,7 @@ async function completeOrder(conversation) {
         participantIds: conversation.participantIds || [],
         price: listing?.price,
         quantity: 1,
+        itemSelection: next.completedItemSelection,
         marketplaceFee: marketplaceFee(listing?.price),
         completedAt: now,
       }).catch(() => {});
@@ -614,6 +635,37 @@ async function updateReportStatus(id, status) {
   return data;
 }
 
+async function deleteReport(id) {
+  await ensureReady();
+  await requireAdmin();
+  const ListingReport = requireModel('ListingReport');
+  const { errors } = await ListingReport.delete({ id });
+  if (errors?.length) throw new Error(errors[0].message || 'Could not clear report.');
+  return true;
+}
+
+async function updateListingAdminNotes(listingId, adminNotes) {
+  await ensureReady();
+  await requireAdmin();
+  const Listing = requireModel('Listing');
+  const { data, errors } = await Listing.update({
+    id: listingId,
+    adminNotes: String(adminNotes || '').trim().slice(0, 2000),
+    editedAt: new Date().toISOString(),
+  });
+  if (errors?.length) throw new Error(errors[0].message || 'Could not save admin notes.');
+  return hydrateListing(data);
+}
+
+async function deleteListingAsAdmin(listingId) {
+  await ensureReady();
+  await requireAdmin();
+  const Listing = requireModel('Listing');
+  const { errors } = await Listing.delete({ id: listingId });
+  if (errors?.length) throw new Error(errors[0].message || 'Could not delete listing.');
+  return true;
+}
+
 async function hideListingFromReport(report) {
   await ensureReady();
   await requireAdmin();
@@ -634,6 +686,8 @@ window.summitMarketplace = {
   createListing,
   deleteListing,
   deleteConversation,
+  deleteListingAsAdmin,
+  deleteReport,
   getConversation,
   getListing,
   getAdminStatus,
@@ -647,6 +701,7 @@ window.summitMarketplace = {
   sendMessage,
   startConversation,
   updateListing,
+  updateListingAdminNotes,
   updateDisplayName,
   updateProfileAvatar,
   updateReportStatus,

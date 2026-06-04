@@ -42,7 +42,7 @@
 
       <div class="header__actions">
         <button class="btn btn--primary btn--sm header-sell-btn" id="sellBtn" type="button">Sell Gear</button>
-        <a class="btn btn--secondary btn--sm header-admin-btn" id="adminBtn" href="/admin.html" hidden>Admin</a>
+        <a class="btn btn--secondary btn--sm header-admin-btn" id="adminBtn" href="/admin" hidden>Admin</a>
         <button class="icon-btn theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark mode">
           <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6"/>
@@ -1051,6 +1051,12 @@
               <span>Price</span>
               <strong>${order.price ? formatCurrency(order.price) : 'Not recorded'}</strong>
             </div>
+            ${order.itemSelection ? `
+              <div class="order-detail__row">
+                <span>Completed item</span>
+                <strong>${order.itemSelection}</strong>
+              </div>
+            ` : ''}
             ${order.marketplaceFee ? `
               <div class="order-detail__row">
                 <span>Marketplace fee</span>
@@ -2308,36 +2314,56 @@
             chatSend.disabled = true;
             chatInput.placeholder = 'Previous order chat';
           }
-          renderOrderCompletion(conversation, profile);
+          renderOrderCompletion(conversation, profile, listing);
           scrollChatToBottom();
         } catch (error) {
           renderInboxEmpty(error.message || 'Could not load messages');
         }
       }
 
-      function renderOrderCompletion(conversation, profile) {
+      function itemSelectionOptions(listing, selectedValue = '') {
+        const quantity = Math.max(1, listingQuantity(listing || {}));
+        return Array.from({ length: quantity }, (_, index) => {
+          const label = `Item ${index + 1}`;
+          return `<option value="${label}"${selectedValue === label ? ' selected' : ''}>${label}</option>`;
+        }).join('');
+      }
+
+      function renderOrderCompletion(conversation, profile, listing = null) {
         const isBuyer = profile.sub === conversation.buyerSub;
         const userCompleted = isBuyer ? conversation.buyerCompletedAt : conversation.sellerCompletedAt;
         const otherCompleted = isBuyer ? conversation.sellerCompletedAt : conversation.buyerCompletedAt;
+        const userSelection = isBuyer ? conversation.buyerItemSelection : conversation.sellerItemSelection;
+        const otherSelection = isBuyer ? conversation.sellerItemSelection : conversation.buyerItemSelection;
+        const completedSelection = conversation.completedItemSelection || userSelection || otherSelection || 'Item 1';
+        const needsItemSelection = listingQuantity(listing || {}) > 1;
         const block = document.createElement('div');
         block.className = 'order-complete-box';
         const explanation = userCompleted
-          ? 'You already confirmed. The listing clears after the other user confirms too.'
+          ? `You already confirmed ${userSelection || 'this item'}. The chat moves to history after the other user confirms the same item.`
           : otherCompleted
-            ? 'The other user already confirmed. Click Complete Order when the sale is fully finished.'
-            : 'Both users must click Complete Order before this listing is removed and saved under Previous Orders.';
+            ? `The other user confirmed ${otherSelection || 'an item'}. Select the same item and complete when the sale is fully finished.`
+            : 'Both users must select the item being sold and click Complete Order. If stock remains, the listing stays active.';
 
         if (conversation.completedAt) {
           block.innerHTML = `
             <div class="order-complete-box__row">
-              <span class="order-complete-box__title">Congrats, order is completed!</span>
+              <span class="order-complete-box__title">Completed: ${completedSelection}</span>
               <button class="order-info-btn" type="button" aria-label="Order completion information">i
-                <span class="order-info-tooltip">This listing has been cleared from active listings and saved under Previous Orders.</span>
+                <span class="order-info-tooltip">This chat is in history. If this listing still has available quantity, it remains active.</span>
               </button>
             </div>
           `;
         } else {
           block.innerHTML = `
+            ${needsItemSelection ? `
+              <label class="order-complete-select">
+                <span>Completing</span>
+                <select data-complete-item-selection ${userCompleted ? 'disabled' : ''}>
+                  ${itemSelectionOptions(listing, userSelection || otherSelection || '')}
+                </select>
+              </label>
+            ` : ''}
             <div class="order-complete-box__row">
               <button class="order-complete-btn" data-complete-order type="button" ${userCompleted ? 'disabled' : ''}>${userCompleted ? 'Confirmed' : 'Complete Order'}</button>
               <button class="order-info-btn" type="button" aria-label="Order completion information">i
@@ -2703,6 +2729,7 @@
         const completeBtn = event.target.closest('[data-complete-order]');
         if (!completeBtn || !selectedInboxConversation || !window.summitMarketplace) return;
         if (!requireDisplayNameForAction()) return;
+        const itemSelection = chatMessages.querySelector('[data-complete-item-selection]')?.value || 'Item 1';
         setFormBusy(completeBtn, true, 'Confirming...');
         try {
           const profile = await window.summitMarketplace.getProfile();
@@ -2711,9 +2738,12 @@
             ? selectedInboxConversation.sellerCompletedAt
             : selectedInboxConversation.buyerCompletedAt;
           const shouldFinishOrder = Boolean(otherCompleted);
-          const updatedConversation = await window.summitMarketplace.completeOrder(selectedInboxConversation);
+          const updatedConversation = await window.summitMarketplace.completeOrder(selectedInboxConversation, { itemSelection });
           selectedInboxConversation = updatedConversation || {
             ...selectedInboxConversation,
+            buyerItemSelection: isBuyer ? itemSelection : selectedInboxConversation.buyerItemSelection,
+            sellerItemSelection: !isBuyer ? itemSelection : selectedInboxConversation.sellerItemSelection,
+            completedItemSelection: shouldFinishOrder ? (selectedInboxConversation.completedItemSelection || itemSelection) : selectedInboxConversation.completedItemSelection,
             buyerCompletedAt: isBuyer ? (selectedInboxConversation.buyerCompletedAt || new Date().toISOString()) : selectedInboxConversation.buyerCompletedAt,
             sellerCompletedAt: !isBuyer ? (selectedInboxConversation.sellerCompletedAt || new Date().toISOString()) : selectedInboxConversation.sellerCompletedAt,
             completedAt: shouldFinishOrder ? (selectedInboxConversation.completedAt || new Date().toISOString()) : selectedInboxConversation.completedAt,
@@ -2725,7 +2755,8 @@
             qrContainer.innerHTML = '';
             chatMessages.innerHTML = '';
             addMessage('bot', 'Congrats, order is completed!');
-            renderOrderCompletion(selectedInboxConversation, profile);
+            const listing = await window.summitMarketplace.getListing(selectedInboxConversation.listingId).catch(() => null);
+            renderOrderCompletion(selectedInboxConversation, profile, listing);
             chatInput.disabled = true;
             chatSend.disabled = true;
             chatInput.placeholder = 'Order completed';

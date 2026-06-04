@@ -24,6 +24,9 @@ const schema = a.schema({
       longitude: a.float(),
       quantityAvailable: a.integer(),
       quantitySold: a.integer(),
+      adminNotes: a.string().authorization((allow) => [
+        allow.group('Admin').to(['read', 'update']),
+      ]),
       trustAcknowledgedAt: a.datetime(),
       status: a.ref('ListingStatus').required(),
       editedAt: a.datetime(),
@@ -50,6 +53,9 @@ const schema = a.schema({
       participantIds: a.string().array().required(),
       lastMessagePreview: a.string(),
       lastMessageAt: a.datetime(),
+      buyerItemSelection: a.string(),
+      sellerItemSelection: a.string(),
+      completedItemSelection: a.string(),
       buyerCompletedAt: a.datetime(),
       sellerCompletedAt: a.datetime(),
       completedAt: a.datetime(),
@@ -89,6 +95,7 @@ const schema = a.schema({
       participantIds: a.string().array().required(),
       price: a.integer(),
       quantity: a.integer(),
+      itemSelection: a.string(),
       marketplaceFee: a.integer(),
       completedAt: a.datetime().required(),
     })

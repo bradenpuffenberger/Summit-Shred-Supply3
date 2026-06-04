@@ -1140,10 +1140,31 @@ body.theme-dark .marketplace-health {
   margin: 6px 0 0 auto;
   padding: 7px;
   border: 1px solid rgba(96,165,250,.28);
-  border-radius: var(--r-pill);
+  border-radius: var(--r-md);
   background: rgba(15,23,42,.92);
   box-shadow: 0 8px 22px rgba(0,0,0,.26);
   backdrop-filter: blur(12px);
+}
+
+.order-complete-select {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 6px;
+  color: #bfdbfe;
+  font-size: 10.5px;
+  font-weight: 900;
+}
+
+.order-complete-select select {
+  height: 28px;
+  min-width: 130px;
+  border: 1px solid rgba(96,165,250,.42);
+  border-radius: var(--r-pill);
+  background: rgba(15,23,42,.82);
+  color: #dbeafe;
+  padding: 0 8px;
+  font: inherit;
+  outline: none;
 }
 
 .order-complete-box__row {
