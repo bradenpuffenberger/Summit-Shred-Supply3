@@ -2820,12 +2820,12 @@
 
       function normalizeAmplifyConfig(config) {
         if (config.Auth?.Cognito?.userPoolId && config.Auth?.Cognito?.userPoolClientId) {
-          return config;
+          return normalizeStorageConfig(config);
         }
 
         if (config.auth) {
           const auth = config.auth;
-          return {
+          return normalizeStorageConfig({
             ...config,
             Auth: {
               Cognito: {
@@ -2842,11 +2842,11 @@
                 signUpVerificationMethod: 'code',
               },
             },
-          };
+          });
         }
 
         if (config.aws_user_pools_id && config.aws_user_pools_web_client_id) {
-          return {
+          return normalizeStorageConfig({
             ...config,
             Auth: {
               Cognito: {
@@ -2861,10 +2861,31 @@
                 signUpVerificationMethod: config.aws_cognito_sign_up_verification_method || 'code',
               },
             },
-          };
+          });
         }
 
-        return config;
+        return normalizeStorageConfig(config);
+      }
+
+      function normalizeStorageConfig(config) {
+        if (config.Storage?.S3?.bucket && config.Storage?.S3?.region) return config;
+
+        const storage = config.storage || {};
+        const primaryBucket = storage.buckets?.[0] || {};
+        const bucket = storage.bucket_name || primaryBucket.bucket_name;
+        const region = storage.aws_region || primaryBucket.aws_region;
+
+        if (!bucket || !region) return config;
+
+        return {
+          ...config,
+          Storage: {
+            S3: {
+              bucket,
+              region,
+            },
+          },
+        };
       }
 
       function getDisplayName(user, attributes) {

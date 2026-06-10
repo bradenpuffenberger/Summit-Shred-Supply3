@@ -60,12 +60,14 @@ async function loadConfig() {
 }
 
 function normalizeConfig(config) {
-  if (config.Auth?.Cognito?.userPoolId && config.API?.GraphQL?.endpoint) return config;
+  if (config.Auth?.Cognito?.userPoolId && config.API?.GraphQL?.endpoint) {
+    return normalizeStorageConfig(config);
+  }
 
   const auth = config.auth || {};
   const data = config.data || {};
 
-  return {
+  return normalizeStorageConfig({
     ...config,
     Auth: {
       Cognito: {
@@ -86,6 +88,27 @@ function normalizeConfig(config) {
         region: data.aws_region,
         defaultAuthMode: 'userPool',
         modelIntrospection: data.model_introspection,
+      },
+    },
+  });
+}
+
+function normalizeStorageConfig(config) {
+  if (config.Storage?.S3?.bucket && config.Storage?.S3?.region) return config;
+
+  const storage = config.storage || {};
+  const primaryBucket = storage.buckets?.[0] || {};
+  const bucket = storage.bucket_name || primaryBucket.bucket_name;
+  const region = storage.aws_region || primaryBucket.aws_region;
+
+  if (!bucket || !region) return config;
+
+  return {
+    ...config,
+    Storage: {
+      S3: {
+        bucket,
+        region,
       },
     },
   };
