@@ -166,16 +166,23 @@ function storagePath(ref) {
   return String(ref || '').replace(/^storage:\/\//, '');
 }
 
+function isUploadStorageKey(ref) {
+  return /^(listing-images|profile-images)\//.test(String(ref || ''));
+}
+
 async function resolveImageUrl(ref) {
   if (!ref) return '';
-  if (!String(ref).startsWith('storage://')) return ref;
+  if (!String(ref).startsWith('storage://') && !isUploadStorageKey(ref)) return ref;
   const { url } = await getUrl({ path: storagePath(ref), options: { expiresIn: 3600 } });
   return url.toString();
 }
 
 async function resolveImageList(refs) {
   const urls = await Promise.all((refs || []).filter(Boolean).map(ref =>
-    resolveImageUrl(ref).catch(() => '')
+    resolveImageUrl(ref).catch(error => {
+      console.warn('Could not resolve listing image URL.', { ref, error });
+      return '';
+    })
   ));
   return urls.filter(Boolean);
 }
