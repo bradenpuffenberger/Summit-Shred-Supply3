@@ -163,17 +163,32 @@ function storageRef(path) {
 }
 
 function storagePath(ref) {
-  return String(ref || '').replace(/^storage:\/\//, '');
+  return uploadStorageKey(ref) || String(ref || '').replace(/^storage:\/\//, '');
 }
 
-function isUploadStorageKey(ref) {
-  return /^(listing-images|profile-images)\//.test(String(ref || ''));
+function uploadStorageKey(ref) {
+  const value = String(ref || '').trim();
+  const cleanValue = value.replace(/^storage:\/\//, '');
+  const directMatch = cleanValue.match(/^(listing-images|profile-images)\/.+/);
+  if (directMatch) return cleanValue;
+
+  try {
+    const url = new URL(value);
+    const key = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+    const nestedMatch = key.match(/(listing-images|profile-images)\/.+/);
+    if (nestedMatch) return key.slice(nestedMatch.index);
+  } catch {
+    // Non-URL refs are handled by the direct storage-key match above.
+  }
+
+  return '';
 }
 
 async function resolveImageUrl(ref) {
   if (!ref) return '';
-  if (!String(ref).startsWith('storage://') && !isUploadStorageKey(ref)) return ref;
-  const { url } = await getUrl({ path: storagePath(ref), options: { expiresIn: 3600 } });
+  const key = storagePath(ref);
+  if (!key || (!String(ref).startsWith('storage://') && !uploadStorageKey(ref))) return ref;
+  const { url } = await getUrl({ path: key, options: { expiresIn: 3600, validateObjectExistence: true } });
   return url.toString();
 }
 
