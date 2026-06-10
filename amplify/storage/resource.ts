@@ -5,9 +5,11 @@ export const storage = defineStorage({
   access: (allow) => ({
     'listing-images/*': [
       allow.authenticated.to(['read', 'write', 'delete']),
+      allow.groups(['Admin']).to(['read', 'write', 'delete']),
     ],
     'profile-images/*': [
       allow.authenticated.to(['read', 'write', 'delete']),
+      allow.groups(['Admin']).to(['read', 'write', 'delete']),
     ],
   }),
 });
