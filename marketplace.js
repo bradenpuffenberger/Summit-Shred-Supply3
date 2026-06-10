@@ -163,32 +163,42 @@ function storageRef(path) {
 }
 
 function storagePath(ref) {
-  return uploadStorageKey(ref) || String(ref || '').replace(/^storage:\/\//, '');
+  return storageLocation(ref).key || String(ref || '').replace(/^storage:\/\//, '');
 }
 
-function uploadStorageKey(ref) {
+function storageLocation(ref) {
   const value = String(ref || '').trim();
   const cleanValue = value.replace(/^storage:\/\//, '');
   const directMatch = cleanValue.match(/^(listing-images|profile-images)\/.+/);
-  if (directMatch) return cleanValue;
+  if (directMatch) return { key: cleanValue };
 
   try {
     const url = new URL(value);
     const key = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
     const nestedMatch = key.match(/(listing-images|profile-images)\/.+/);
-    if (nestedMatch) return key.slice(nestedMatch.index);
+    if (nestedMatch) {
+      const bucketMatch = url.hostname.match(/^(.+)\.s3[.-]([a-z0-9-]+)\.amazonaws\.com$/i);
+      return {
+        key: key.slice(nestedMatch.index),
+        bucket: bucketMatch ? { bucketName: bucketMatch[1], region: bucketMatch[2] } : undefined,
+      };
+    }
   } catch {
     // Non-URL refs are handled by the direct storage-key match above.
   }
 
-  return '';
+  return { key: '' };
 }
 
 async function resolveImageUrl(ref) {
   if (!ref) return '';
-  const key = storagePath(ref);
-  if (!key || (!String(ref).startsWith('storage://') && !uploadStorageKey(ref))) return ref;
-  const { url } = await getUrl({ path: key, options: { expiresIn: 3600 } });
+  const location = storageLocation(ref);
+  const key = location.key || storagePath(ref);
+  if (!key || (!String(ref).startsWith('storage://') && !location.key)) return ref;
+  const options = location.bucket
+    ? { expiresIn: 3600, bucket: location.bucket }
+    : { expiresIn: 3600 };
+  const { url } = await getUrl({ path: key, options });
   return url.toString();
 }
 
