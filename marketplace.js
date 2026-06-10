@@ -188,7 +188,7 @@ async function resolveImageUrl(ref) {
   if (!ref) return '';
   const key = storagePath(ref);
   if (!key || (!String(ref).startsWith('storage://') && !uploadStorageKey(ref))) return ref;
-  const { url } = await getUrl({ path: key, options: { expiresIn: 3600, validateObjectExistence: true } });
+  const { url } = await getUrl({ path: key, options: { expiresIn: 3600 } });
   return url.toString();
 }
 
@@ -607,7 +607,7 @@ async function listOrders() {
   const profile = await getProfile();
   const hydrateOrder = async order => ({
     ...order,
-    listingImageUrl: await resolveImageUrl(order.listingImageUrl).catch(() => order.listingImageUrl),
+    listingImageUrl: await resolveImageUrl(order.listingImageUrl).catch(() => ''),
   });
   if (client?.models?.Order) {
     const { data, errors } = await client.models.Order.list();
