@@ -352,11 +352,11 @@
 
       function listingImages(listing) {
         const images = listing?.imageUrls?.filter(Boolean) || [];
-        return images.length ? images : ['/images/placeholder.jpg'];
+        return images.length ? images : ['/images/placeholder.svg'];
       }
 
       function imageFallbackAttr() {
-        return `onerror="this.onerror=null;this.src='/images/placeholder.jpg';"`;
+        return `onerror="this.onerror=null;this.src='/images/placeholder.svg';"`;
       }
 
       function showLocked(message) {

@@ -615,7 +615,7 @@
           price: listing.price,
           description: listing.description || '',
           category: listing.category || 'Accessories',
-          imageUrls: listing.imageUrls?.filter(Boolean)?.length ? listing.imageUrls.filter(Boolean) : ['/images/placeholder.jpg'],
+          imageUrls: listing.imageUrls?.filter(Boolean)?.length ? listing.imageUrls.filter(Boolean) : ['/images/placeholder.svg'],
           imageRefs: listing.imageRefs || listing.imageUrls || [],
           sellerAvatarKey: listing.sellerAvatarKey || '',
           sellerAvatarUrl: listing.sellerAvatarUrl || '',
@@ -673,7 +673,7 @@
         return false;
       }
 
-      function imageFallbackAttr(path = 'images/placeholder.jpg') {
+      function imageFallbackAttr(path = '/images/placeholder.svg') {
         return `onerror="this.onerror=null;this.src='${path}';"`;
       }
 
@@ -967,7 +967,7 @@
       }
 
       function renderProfileItem(item, actionLabel, actionAttr) {
-        const imageUrl = item.imageUrls?.[0] || 'images/placeholder.jpg';
+        const imageUrl = item.imageUrls?.[0] || '/images/placeholder.svg';
         return `
           <div class="profile-item">
             <img class="profile-item__img" src="${imageUrl}" alt="${item.itemName}" ${imageFallbackAttr()} />
@@ -1035,7 +1035,7 @@
         const order = findProfileOrder(id);
         if (!order) return;
         detailTitle.textContent = 'Previous Order';
-        const imageUrl = order.listingImageUrl || 'images/placeholder.jpg';
+        const imageUrl = order.listingImageUrl || '/images/placeholder.svg';
         detailBody.innerHTML = `
           <div class="order-detail">
             <img class="order-detail__img" src="${imageUrl}" alt="${order.listingTitle || 'Completed order'}" ${imageFallbackAttr()} />
@@ -1322,7 +1322,7 @@
           card.className = 'card';
           card.setAttribute('data-id', item.id);
 
-          const imageUrl = (item.imageUrls && item.imageUrls[0]) || 'images/placeholder.jpg';
+          const imageUrl = (item.imageUrls && item.imageUrls[0]) || '/images/placeholder.svg';
           const wished = isWishlisted(item.id);
           const ownListing = isOwnListing(item);
           const imageAction = ownListing
@@ -1428,7 +1428,7 @@
         detailTitle.textContent = item.itemName;
         const wished = isWishlisted(id);
         const ownListing = isOwnListing(item);
-        const images = item.imageUrls?.filter(Boolean)?.length ? item.imageUrls.filter(Boolean) : ['images/placeholder.jpg'];
+        const images = item.imageUrls?.filter(Boolean)?.length ? item.imageUrls.filter(Boolean) : ['/images/placeholder.svg'];
         const detailTopAction = ownListing
           ? `<button class="wishlist-btn listing-menu-btn wishlist-btn--detail" data-detail-edit="${item.id}" type="button" aria-label="Edit listing" title="Edit listing"><span aria-hidden="true">...</span></button>`
           : `<button class="wishlist-btn wishlist-btn--detail${wished ? ' is-active' : ''}" data-detail-wishlist="${item.id}" type="button" aria-label="${wished ? 'Remove from wish list' : 'Add to wish list'}" title="${wished ? 'Remove from wish list' : 'Add to wish list'}">
@@ -2122,7 +2122,7 @@
           if (!item) return;
           const lineTotal = item.price * qty;
           subtotal += lineTotal;
-          const imageUrl = (item.imageUrls && item.imageUrls[0]) || '../images/placeholder.jpg';
+          const imageUrl = (item.imageUrls && item.imageUrls[0]) || '/images/placeholder.svg';
 
           const el = document.createElement('div');
           el.className = 'cart-item';

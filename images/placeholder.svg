@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">Summit Shred Supply placeholder</title>
+  <desc id="desc">A stylized mountain placeholder for listings without a working image.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e8f3f8"/>
+      <stop offset="0.55" stop-color="#f7fbfc"/>
+      <stop offset="1" stop-color="#d9ecef"/>
+    </linearGradient>
+    <linearGradient id="ridge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#25313a"/>
+      <stop offset="1" stop-color="#101820"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#sky)"/>
+  <circle cx="955" cy="170" r="72" fill="#f7c948" opacity=".88"/>
+  <path d="M0 680 260 345 450 595 620 280 965 680Z" fill="url(#ridge)"/>
+  <path d="M620 280 515 475 600 438 650 520 715 410Z" fill="#f5fbff" opacity=".92"/>
+  <path d="M260 345 190 435 258 408 300 490 342 452Z" fill="#f5fbff" opacity=".9"/>
+  <path d="M0 680h1200v220H0Z" fill="#eef6f7"/>
+  <path d="M265 740c160-62 340-80 540-30 130 32 250 30 395-18v208H0V792c82 0 170-16 265-52Z" fill="#d7e9ec"/>
+  <g fill="#101820" opacity=".66">
+    <path d="M515 628h170v22H515z"/>
+    <path d="M565 600h70v82h-70z"/>
+  </g>
+</svg>

@@ -347,7 +347,7 @@
           card.className = 'card';
           card.setAttribute('data-id', item.id);
 
-          const imageUrl = (item.imageUrls && item.imageUrls[0]) || 'images/placeholder.jpg';
+          const imageUrl = (item.imageUrls && item.imageUrls[0]) || '/images/placeholder.svg';
           const inCart = cart[item.id] || 0;
           card.innerHTML = `
             <div class="card__img-wrap">
@@ -423,7 +423,7 @@
         detailBody.innerHTML = `
           <div class="detail">
             <div class="detail__img-wrap">
-              <img class="detail__img" src="${item.imageUrls[0] || 'images/placeholder.jpg'}" alt="${item.itemName}" />
+              <img class="detail__img" src="${item.imageUrls[0] || '/images/placeholder.svg'}" alt="${item.itemName}" />
             </div>
             <div class="detail__info">
               <h2 class="detail__name">${item.itemName}</h2>
@@ -583,7 +583,7 @@
           if (!item) return;
           const lineTotal = item.price * qty;
           subtotal += lineTotal;
-          const imageUrl = (item.imageUrls && item.imageUrls[0]) || '../images/placeholder.jpg';
+          const imageUrl = (item.imageUrls && item.imageUrls[0]) || '/images/placeholder.svg';
 
           const el = document.createElement('div');
           el.className = 'cart-item';
